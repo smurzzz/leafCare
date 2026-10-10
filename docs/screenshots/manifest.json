@@ -1,0 +1,142 @@
+{
+  "url": "http://localhost:8080/",
+  "count": 27,
+  "frames": [
+    {
+      "order": 1,
+      "label": "Splash",
+      "file": "01-splash.png"
+    },
+    {
+      "order": 2,
+      "label": "Onboarding — slide 1",
+      "file": "02-onboarding-slide-1.png"
+    },
+    {
+      "order": 3,
+      "label": "Onboarding — slide 2",
+      "file": "03-onboarding-slide-2.png"
+    },
+    {
+      "order": 4,
+      "label": "Onboarding — slide 3",
+      "file": "04-onboarding-slide-3.png"
+    },
+    {
+      "order": 5,
+      "label": "Sign up",
+      "file": "05-sign-up.png"
+    },
+    {
+      "order": 6,
+      "label": "Log in",
+      "file": "06-log-in.png"
+    },
+    {
+      "order": 7,
+      "label": "Verify email",
+      "file": "07-verify-email.png"
+    },
+    {
+      "order": 8,
+      "label": "Home / Today",
+      "file": "08-home-today.png"
+    },
+    {
+      "order": 9,
+      "label": "Scan — camera",
+      "file": "09-scan-camera.png"
+    },
+    {
+      "order": 10,
+      "label": "Identifying",
+      "file": "10-identifying.png"
+    },
+    {
+      "order": 11,
+      "label": "Scan result",
+      "file": "11-scan-result.png"
+    },
+    {
+      "order": 12,
+      "label": "Low confidence",
+      "file": "12-low-confidence.png"
+    },
+    {
+      "order": 13,
+      "label": "Add plant",
+      "file": "13-add-plant.png"
+    },
+    {
+      "order": 14,
+      "label": "My Plants",
+      "file": "14-my-plants.png"
+    },
+    {
+      "order": 15,
+      "label": "Plant detail",
+      "file": "15-plant-detail.png"
+    },
+    {
+      "order": 16,
+      "label": "Edit schedule",
+      "file": "16-edit-schedule.png"
+    },
+    {
+      "order": 17,
+      "label": "Care log",
+      "file": "17-care-log.png"
+    },
+    {
+      "order": 18,
+      "label": "Reminders",
+      "file": "18-reminders.png"
+    },
+    {
+      "order": 19,
+      "label": "Reminders — empty",
+      "file": "19-reminders-empty.png"
+    },
+    {
+      "order": 20,
+      "label": "Notification settings",
+      "file": "20-notification-settings.png"
+    },
+    {
+      "order": 21,
+      "label": "Profile",
+      "file": "21-profile.png"
+    },
+    {
+      "order": 22,
+      "label": "Settings / account",
+      "file": "22-settings-account.png"
+    },
+    {
+      "order": 23,
+      "label": "Settings — delete confirm",
+      "file": "23-settings-delete-confirm.png"
+    },
+    {
+      "order": 24,
+      "label": "State — camera permission",
+      "file": "24-state-camera-permission.png"
+    },
+    {
+      "order": 25,
+      "label": "State — error",
+      "file": "25-state-error.png"
+    },
+    {
+      "order": 26,
+      "label": "State — loading & offline",
+      "file": "26-state-loading-offline.png"
+    },
+    {
+      "order": 27,
+      "label": "State — success toast",
+      "file": "27-state-success-toast.png"
+    }
+  ],
+  "errors": []
+}

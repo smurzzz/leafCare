@@ -1,0 +1,12 @@
+{
+  "name": "leafcare",
+  "version": "0.1.0",
+  "private": true,
+  "description": "LeafCare — camera-based plant identification and watering reminders. Spec-first repo: implement from docs/ and AGENTS.md.",
+  "scripts": {
+    "docs:check": "node -e \"const fs=require('fs'); const files=['README.md','AGENTS.md','CONTRIBUTING.md','docs/overview.md','docs/requirements.md','docs/architecture.md','docs/specification.md','docs/database.md','docs/api.md','docs/security.md','docs/ui-ux.md','docs/plan.md','docs/tasks.md','docs/testing.md','docs/deployment.md','docs/troubleshooting.md','docs/changelog.md']; const missing=files.filter(f=>!fs.existsSync(f)); if(missing.length){console.error('Missing:', missing.join(', ')); process.exit(1)} console.log('Docs present: '+files.length+' files')\""
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
