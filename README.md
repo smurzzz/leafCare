@@ -79,7 +79,7 @@ npm run api                                    # http://localhost:3000/api/healt
 # 2. Apply the schema
 #    Paste apps/api/supabase/migrations/0001_init.sql into the Supabase SQL editor.
 
-# 3. Seed the demo account (needs a Clerk user id)
+# 3. Sign up once in the app, then seed the demo account with that user's id
 npm run seed -- <clerk_user_id>
 
 # 4. Mobile
@@ -87,11 +87,23 @@ cp apps/mobile/.env.example apps/mobile/.env   # Clerk publishable key + API bas
 npm run mobile                                 # then press a / i, or scan the QR
 ```
 
+Each app loads its own env file — Next.js reads `apps/api/.env.local` from the app
+directory and Expo reads `apps/mobile/.env`. A `.env.local` at the repository root is
+**not** read by either app.
+
+Check the setup at any time:
+
+```bash
+npm run doctor --workspace @leafcare/api   # makes a real call to each integration
+npm run check                              # docs present + no committed secrets
+```
+
 Useful checks:
 
 ```bash
 npm run typecheck      # shared + api + mobile
-node tests/shared-domain.test.mjs
+npm test               # shared domain math + identify provider contract
+npm run check          # docs present + scan tracked files for credentials
 ```
 
 `IDENTIFY_PROVIDER=mock` (the default when no Plant.id key is present) makes the

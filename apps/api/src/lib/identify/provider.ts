@@ -156,6 +156,13 @@ const plantNetIdentify = async (input: IdentifyInput): Promise<IdentifyProviderR
 
   if (!response.ok) {
     const detail = await response.text().catch(() => '');
+    // Pl@ntNet answers 404 "Species not found" when it cannot match the photo.
+    // That is a legitimate answer, not an upstream failure: reporting it as a
+    // 502 told the user the app was broken when the correct path is the
+    // no-match / uncertain flow (docs/specification.md screen 12).
+    if (response.status === 404 && /species not found/i.test(detail)) {
+      return { provider: 'plantnet', suggestions: [], raw: { status: 404, message: 'Species not found' } };
+    }
     throw new HttpError(502, 'UPSTREAM_ERROR', `Pl@ntNet rejected the request (${response.status})`, detail.slice(0, 400));
   }
 

@@ -7,9 +7,17 @@ Use this as the implementation backlog. Check items in PRs / changelog when done
 - [x] Create `apps/mobile` Expo Router TypeScript app named LeafCare
 - [x] Create `apps/api` Next.js App Router TypeScript app
 - [x] Add root env files from `.env.example`
-- [ ] Create Clerk application (email + Google + email code) — **needs your dashboard keys**
-- [ ] Create Supabase project — **needs your project keys**
-- [ ] Obtain Plant.id (or PlantNet) API key — optional, `IDENTIFY_PROVIDER=mock` works without one
+- [x] Create Clerk application — `CLERK_SECRET_KEY` validates against the Backend API
+      (still enable email + Google + email code in the dashboard)
+- [x] Create Supabase project — URL and secret key authenticate against REST + Storage
+- [x] Obtain Plant.id (or PlantNet) API key — PlantNet key present and accepted; no-match
+      answers now fall through to the uncertain flow instead of a 502
+- [ ] **Apply `apps/api/supabase/migrations/0001_init.sql`** — none of the eight tables and
+      the `plant-photos` bucket exist yet, so every data screen is blocked on this
+- [ ] **Sign up one user in the app** — the seed needs a `clerk_user_id` and the Clerk
+      instance currently has zero users
+- [ ] Put real values in `apps/mobile/.env` — `EXPO_PUBLIC_PROJECT_ID` is still `xxxxxxxx`,
+      so push registration will fail on device
 - [x] `GET /api/health` works
 - [x] Expo app launches on a device/simulator (bundle exports cleanly for android)
 - [x] Document local run commands in README when apps exist
@@ -103,7 +111,8 @@ Use this as the implementation backlog. Check items in PRs / changelog when done
 - [x] API typechecks and `next build` renders every route
 - [x] Expo bundle exports for Android without errors
 - [ ] Auth happy path + Google — **needs live Clerk keys**
-- [ ] Identify high vs low confidence on device — **needs a device + API keys**
+- [ ] Identify high vs low confidence on device — **needs a device and a real leaf photo**
+      (the vendor path is verified only as far as auth + no-match; see testing.md)
 - [ ] Save plant appears on Home and My Plants — **needs Supabase**
 - [ ] Mark watered from three surfaces + toast — **needs Supabase**
 - [ ] Reminder empty vs filled — **needs Supabase**

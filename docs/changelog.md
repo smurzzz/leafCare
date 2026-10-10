@@ -65,6 +65,34 @@
   confidence tiers.
 - `npm test` runs both; `npm run typecheck` covers shared + api + mobile.
 
+## Unreleased — live-credential verification
+
+First run against real Clerk, Supabase and PlantNet keys. Fixes found by turning the
+services on:
+
+- **Expired or forged session tokens returned 500 instead of 401.** Clerk's verifier
+  throws `TokenVerificationError`, which nothing mapped, so the generic handler reported a
+  server fault and logged an unhandled error for what is a routine client problem. Only
+  genuine JWKS-reachability reasons stay a 503, so a transient Clerk outage cannot sign a
+  working user out.
+- **Pl@ntNet `404 Species not found` was reported as a 502 upstream failure.** That is a
+  legitimate "no match" answer; it now returns zero suggestions so the caller can use the
+  no-match path instead of telling the user the server broke.
+- **`tsx` scripts could not see any env file.** Next.js loads `.env.local` on its own but
+  `tsx` loads nothing, so `npm run seed` and the reminder job saw an empty environment.
+  Both now load `apps/api/.env.local`, then `.env`, then the repo root.
+- **The identify test depended on ambient env.** It asserted the mock provider without
+  pinning `IDENTIFY_PROVIDER`, so exporting a vendor key broke it.
+
+Added:
+
+- `npm run doctor --workspace @leafcare/api` — probes Supabase REST, the photo bucket,
+  Clerk and the identify provider and explains each failure in terms of the fix.
+- `npm run identify:fixture --workspace @leafcare/api -- <image>` — runs the real vendor
+  path against a photo, the only way to validate a key before a demo.
+- `npm run check:secrets` — fails if a credential is ever written into a tracked file,
+  which is how a live `CRON_SECRET` nearly reached `.env.example`.
+
 ## 1.0.0 — planned
 
 First student demo APK: identification, collection, watering, reminders, Clerk auth, matching the screenshot flows.

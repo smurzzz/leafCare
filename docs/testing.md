@@ -28,6 +28,31 @@ npm test              # shared domain math + identify provider contract
   inside 1–60 days, and produces both `high` and `low` results across photos so
   screens 11 and 12 are both reachable without a vendor key.
 
+### Verified against a running server (real keys)
+
+Run with the Clerk, Supabase and PlantNet keys from `apps/api/.env.local`:
+
+```bash
+npm run doctor --workspace @leafcare/api    # probes each integration for real
+```
+
+| Check | Result |
+| --- | --- |
+| `next build` | 20 routes compile |
+| `GET /api/health` | `clerk`, `supabase`, `webhook`, `push` all `true` |
+| Clerk Backend API | secret key accepted (0 users on the instance) |
+| Supabase REST | secret key authenticates; PGRST205 for all eight tables |
+| Supabase Storage | `GET /storage/v1/bucket` → 200 (bucket list empty) |
+| PlantNet | key accepted, `POST …/v2/identify/all` → 404 `Species not found` for mockup images, mapped to **zero suggestions**, not a 502 |
+| Protected routes | 401 `UNAUTHORIZED` with no token, a garbage token **and** a well-formed expired token |
+| Cron job | 403 with a wrong `x-cron-secret`; 500 only because the tables are missing |
+| CORS | preflight + GET carry `Access-Control-Allow-Origin` for `APP_ORIGIN`; a foreign origin gets none |
+
+**Not covered:** the vendor's success path needs a real leaf photo — every image in
+`docs/screenshots/` is a UI mockup and matches nothing. Any signed-in flow (plants, water,
+reminders, care log) is blocked until the migration is applied, because there is no user id
+to authenticate with yet.
+
 ### Verified against a running server (no keys)
 
 `GET /api/health` → 200 with an `integrations` report; every protected route

@@ -9,6 +9,8 @@
  * demand, exactly like the webhook would.
  */
 
+import './load-env';
+
 import { FALLBACK_TIME_ZONE, computeNextDueAt, localDateKey } from '@leafcare/shared';
 
 import type { NotificationPrefsRow, PlantRow, ProfileRow } from '../src/lib/db-types';

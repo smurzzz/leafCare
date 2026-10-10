@@ -4,7 +4,10 @@
  * Usage: npm run job:reminders --workspace @leafcare/api -- http://localhost:3000
  */
 
-const baseUrl = process.argv[2] ?? process.env.API_BASE_URL ?? 'http://localhost:3000';
+import './load-env';
+
+const baseUrl =
+  process.argv[2] ?? process.env.EXPO_PUBLIC_API_BASE_URL ?? process.env.API_BASE_URL ?? 'http://localhost:3000';
 const secret = process.env.CRON_SECRET;
 
 const run = async (): Promise<void> => {

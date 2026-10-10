@@ -10,7 +10,7 @@
 import { verifyToken } from '@clerk/nextjs/server';
 
 import { env } from './env';
-import { forbidden, unauthorized } from './http';
+import { HttpError, forbidden, unauthorized } from './http';
 
 export type AuthenticatedUser = {
   clerkUserId: string;
@@ -25,14 +25,50 @@ const bearerToken = (request: Request): string | null => {
   return token.trim();
 };
 
+/**
+ * TokenVerificationError reasons that describe *our* inability to verify rather
+ * than a bad caller token. When Clerk's JWKS endpoint cannot be reached the
+ * session is not necessarily invalid, so answering 401 would sign a working
+ * user out over a transient outage.
+ */
+const INFRASTRUCTURE_REASONS = new Set([
+  'jwk-remote-failed-to-load',
+  'jwk-remote-invalid',
+  'jwk-remote-missing',
+  'jwk-local-missing',
+  'jwk-failed-to-resolve',
+]);
+
+/** Clerk throws `TokenVerificationError`, which carries the machine reason. */
+const verificationReason = (error: unknown): string | null => {
+  if (typeof error === 'object' && error !== null && 'reason' in error) {
+    const reason = (error as { reason?: unknown }).reason;
+    if (typeof reason === 'string') return reason;
+  }
+  return null;
+};
+
 export const authenticate = async (request: Request): Promise<AuthenticatedUser> => {
   const token = bearerToken(request);
   if (!token) throw unauthorized();
 
-  const payload = await verifyToken(token, {
-    secretKey: env.clerkSecretKey,
-    ...(env.clerkJwtKey ? { jwtKey: env.clerkJwtKey } : {}),
-  });
+  let payload: Awaited<ReturnType<typeof verifyToken>>;
+  try {
+    payload = await verifyToken(token, {
+      secretKey: env.clerkSecretKey,
+      ...(env.clerkJwtKey ? { jwtKey: env.clerkJwtKey } : {}),
+    });
+  } catch (error) {
+    const reason = verificationReason(error);
+    if (reason && INFRASTRUCTURE_REASONS.has(reason)) {
+      console.error('[api] clerk verification unavailable', reason);
+      throw new HttpError(503, 'CONFIG_ERROR', 'Cannot verify sessions right now');
+    }
+    // Expired, forged or wrong-instance tokens are the caller's problem, not a
+    // server fault: the client must sign in again.
+    console.warn('[api] rejected session token', reason ?? error);
+    throw unauthorized();
+  }
 
   const subject = typeof payload.sub === 'string' ? payload.sub : null;
   if (!subject) throw unauthorized('Session token is missing a subject');

@@ -19,6 +19,8 @@
     "test": "npm run test:shared && npm run test:api",
     "test:shared": "node tests/shared-domain.test.mjs",
     "test:api": "npm run test --workspace @leafcare/api",
-    "seed": "npm run seed --workspace @leafcare/api"
+    "seed": "npm run seed --workspace @leafcare/api",
+    "check:secrets": "node scripts/check-secrets.mjs",
+    "check": "npm run docs:check && npm run check:secrets"
   }
 }

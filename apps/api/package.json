@@ -9,7 +9,9 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx tests/identify-provider.test.ts",
     "seed": "tsx scripts/seed.ts",
-    "job:reminders": "tsx scripts/run-reminder-job.ts"
+    "job:reminders": "tsx scripts/run-reminder-job.ts",
+    "doctor": "tsx scripts/doctor.ts",
+    "identify:fixture": "tsx scripts/identify-fixture.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.9.14",

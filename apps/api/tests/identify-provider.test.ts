@@ -11,6 +11,11 @@ import assert from 'node:assert/strict';
 
 import { enrichSuggestion, identifyPlant } from '../src/lib/identify/provider';
 
+// This suite exercises the deterministic mock, so pin the provider rather than
+// inheriting whatever key happens to be exported in the shell. `env.ts` reads
+// lazily, so setting it here still applies.
+process.env.IDENTIFY_PROVIDER = 'mock';
+
 const bytesFor = (seed: number, length = 256): Uint8Array =>
   new Uint8Array(Array.from({ length }, (_, index) => (index * 31 + seed * 7) % 256));
 
@@ -28,7 +33,7 @@ const run = async (): Promise<void> => {
     filename: 'leaf.jpg',
   });
 
-  assert.equal(first.provider, 'mock');
+  assert.equal(first.provider, 'mock', 'sentinel: suite must run against the mock provider');
   assert.deepEqual(first.suggestions, again.suggestions, 'same bytes must give the same species');
   assert.ok(first.suggestions.length >= 3, 'expect several suggestions');
 
