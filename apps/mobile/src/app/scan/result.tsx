@@ -3,7 +3,7 @@
  * tappable alternatives that swap the selection, and Add to My Plants.
  */
 
-import { palette, radius, spacing, type IdentificationSuggestion } from '@leafcare/shared';
+import { radius, spacing, type IdentificationSuggestion } from '@leafcare/shared';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';

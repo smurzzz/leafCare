@@ -5,7 +5,7 @@
 
 import { radius, spacing } from '@leafcare/shared';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Pressable, StyleSheet, Text, useAnimatedValue, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { config } from '@/lib/config';
@@ -22,7 +22,7 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [event, setEvent] = useState<ToastEvent | null>(null);
-  const translate = useRef(new Animated.Value(-120)).current;
+  const translate = useAnimatedValue(-120);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -100,7 +100,7 @@ export const Skeleton = ({
   style?: object;
 }) => {
   const { colors } = useTheme();
-  const opacity = useRef(new Animated.Value(0.45)).current;
+  const opacity = useAnimatedValue(0.45);
 
   useEffect(() => {
     const loop = Animated.loop(

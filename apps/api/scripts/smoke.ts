@@ -107,7 +107,7 @@ const main = async (): Promise<void> => {
   if (!token) throw new Error('Clerk returned no session token');
   console.log(`  session : ${sessionId}\n`);
 
-  const me = await call<{ firstName: string }>('GET /api/me', '/api/me', token, meResponseSchema);
+  await call<{ firstName: string }>('GET /api/me', '/api/me', token, meResponseSchema);
   const home = await call<{
     firstName: string;
     dueCount: number;

@@ -5,6 +5,8 @@
 
 import { useAuth } from '@clerk/expo';
 import { spacing } from '@leafcare/shared';
+import { useQueryClient } from '@tanstack/react-query';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -23,7 +25,13 @@ import { TextField } from '@/components/ui/inputs';
 import { AchievementChip, Avatar, Sheet, StatBlock, TipCard } from '@/components/ui/misc';
 import { Button, Card, IconButton, SectionLabel, TextButton } from '@/components/ui/primitives';
 import { cancelAllReminders } from '@/lib/notifications';
-import { useMe, useUpdateMe } from '@/lib/queries';
+import {
+  clearUserCaches,
+  useMe,
+  useRemoveAvatar,
+  useUpdateMe,
+  useUploadAvatar,
+} from '@/lib/queries';
 import { useSettings } from '@/theme/settings-provider';
 
 export default function ProfileRoute() {
@@ -31,19 +39,32 @@ export default function ProfileRoute() {
   const { colors } = useSettings();
   const { hydrate } = useSettings();
   const { signOut } = useAuth();
+  const queryClient = useQueryClient();
   const me = useMe();
   const updateMe = useUpdateMe();
+  const uploadAvatar = useUploadAvatar();
+  const removeAvatar = useRemoveAvatar();
 
   const [editOpen, setEditOpen] = useState(false);
   const [privacyOpen, setPrivacyOpen] = useState(false);
-  const [name, setName] = useState('');
 
   const profile = me.data?.profile;
+  const serverName = profile?.fullName ?? '';
+
+  const [name, setName] = useState(serverName);
+  const [seededName, setSeededName] = useState(serverName);
+
+  // React's "adjust state when a prop changes" pattern: the profile arrives from the API
+  // after the first render, so the editable name is seeded during render rather than in an
+  // effect, which would render the field empty once before filling it in.
+  if (serverName !== seededName) {
+    setSeededName(serverName);
+    setName(serverName);
+  }
 
   useEffect(() => {
     if (!profile) return;
     hydrate({ theme: profile.theme, units: profile.units });
-    setName(profile.fullName ?? '');
   }, [profile, hydrate]);
 
   if (me.isError && !me.data) {
@@ -140,6 +161,28 @@ export default function ProfileRoute() {
       </ScrollView>
 
       <Sheet visible={editOpen} onClose={() => setEditOpen(false)} title="Edit profile">
+        <View style={styles.photoRow}>
+          <Avatar uri={profile?.avatarUrl ?? null} name={profile?.fullName ?? 'You'} size={64} />
+          <View style={{ flex: 1, gap: spacing.sm }}>
+            <Button
+              label={uploadAvatar.isPending ? 'Uploading…' : 'Change photo'}
+              variant="secondary"
+              disabled={uploadAvatar.isPending}
+              onPress={() => void pickAvatar()}
+            />
+            {profile?.avatarUrl ? (
+              <TextButton
+                label="Remove photo"
+                tone="muted"
+                onPress={() => removeAvatar.mutate()}
+              />
+            ) : (
+              <Text style={[styles.sectionMeta, { color: colors.muted }]}>
+                No photo yet — LeafCare draws your initials.
+              </Text>
+            )}
+          </View>
+        </View>
         <TextField label="Full name" value={name} onChangeText={setName} autoCapitalize="words" />
         <Button
           label="Save"
@@ -164,8 +207,28 @@ export default function ProfileRoute() {
     </SafeAreaView>
   );
 
+  /** Camera roll, cropped square, uploaded straight to our API (never a third party). */
+  async function pickAvatar() {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Photo access needed', 'Allow photo access to choose a profile picture.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.85,
+      allowsEditing: true,
+      aspect: [1, 1],
+    });
+    const asset = result.canceled ? undefined : result.assets[0];
+    if (!asset?.uri) return;
+    uploadAvatar.mutate({ uri: asset.uri, fileName: asset.fileName, mimeType: asset.mimeType });
+  }
+
   async function onLogOut() {
     await cancelAllReminders().catch(() => undefined);
+    // Leave nothing of this account on the device for the next person to see.
+    await clearUserCaches(queryClient).catch(() => undefined);
     await signOut();
     router.replace('/(auth)/sign-in');
   }
@@ -221,6 +284,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 17, fontWeight: '800', letterSpacing: -0.3 },
   sectionMeta: { fontSize: 12, fontWeight: '600' },
   achievementGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  photoRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
   menuRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingRight: spacing.lg },
   menuLabel: { flex: 1, fontSize: 15, fontWeight: '600', paddingVertical: spacing.lg },
 });

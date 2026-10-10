@@ -2,12 +2,10 @@ import { confidenceTier } from '@leafcare/shared';
 import { randomUUID } from 'node:crypto';
 
 import { authenticate } from '@/lib/auth';
-import type { IdentificationRow } from '@/lib/db-types';
 import { env } from '@/lib/env';
 import { HttpError, badRequest, handle, isUuid, json, preflight, readImageUpload } from '@/lib/http';
 import { enrichSuggestion, identifyPlant } from '@/lib/identify/provider';
-import { createContext } from '@/lib/plants';
-import { ensureProfile, profileTimeZone } from '@/lib/profile';
+import { ensureProfile } from '@/lib/profile';
 import { rateLimit } from '@/lib/rate-limit';
 import { supabaseAdmin } from '@/lib/supabase';
 
@@ -41,9 +39,8 @@ export const POST = handle(async (request) => {
     );
   }
 
-  const profile = await ensureProfile(clerkUserId);
-  const context = createContext(profile);
-  void profileTimeZone(profile);
+  // Creates the profile row on the first identify; the row itself is not needed here.
+  await ensureProfile(clerkUserId);
 
   const upload = await readImageUpload(request);
   const requestedId = request.headers.get('x-request-id');
@@ -98,7 +95,7 @@ export const POST = handle(async (request) => {
     const [top, ...rest] = enriched;
     if (!top) throw badRequest('No suggestions returned');
 
-    const { data: saved } = await supabase
+    await supabase
       .from('identifications')
       .update({
         status: 'succeeded',
@@ -106,10 +103,7 @@ export const POST = handle(async (request) => {
         raw_response: result.raw as never,
         suggestions: enriched as never,
       })
-      .eq('id', identificationId)
-      .select('*')
-      .single<IdentificationRow>();
-    void saved;
+      .eq('id', identificationId);
 
     return json({
       identificationId,

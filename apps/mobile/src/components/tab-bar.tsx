@@ -27,7 +27,7 @@ type TabBarProps = {
   };
 };
 
-const TABS: Array<{ name: string; label: string; Icon: (props: IconProps) => React.ReactElement }> = [
+const TABS: { name: string; label: string; Icon: (props: IconProps) => React.ReactElement }[] = [
   { name: 'home', label: 'Home', Icon: HomeIcon },
   { name: 'plants', label: 'My Plants', Icon: LeafIcon },
   { name: 'reminders', label: 'Reminders', Icon: BellIcon },

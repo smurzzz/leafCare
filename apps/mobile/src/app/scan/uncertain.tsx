@@ -3,7 +3,7 @@
  * a manual species search that queries our own catalogue.
  */
 
-import { palette, spacing, type Species } from '@leafcare/shared';
+import { spacing, type Species } from '@leafcare/shared';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';

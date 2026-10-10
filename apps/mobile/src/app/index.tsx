@@ -8,7 +8,7 @@ import { useAuth } from '@clerk/expo';
 import { palette, spacing } from '@leafcare/shared';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Pressable, StyleSheet, Text, useAnimatedValue, View } from 'react-native';
 
 import { LeafDecor, SplashMark } from '@/components/illustrations';
 import { hasOnboarded, setHasOnboarded } from '@/lib/storage';
@@ -18,7 +18,7 @@ const SPLASH_MS = 2000;
 export default function SplashScreenRoute() {
   const router = useRouter();
   const { isLoaded, isSignedIn } = useAuth();
-  const fade = useRef(new Animated.Value(0)).current;
+  const fade = useAnimatedValue(0);
   const navigated = useRef(false);
 
   useEffect(() => {

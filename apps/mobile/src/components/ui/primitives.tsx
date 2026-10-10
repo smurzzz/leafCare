@@ -4,7 +4,7 @@
 
 import { radius, shadows, spacing } from '@leafcare/shared';
 import { Image } from 'expo-image';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -420,6 +420,11 @@ export const Avatar = ({
 }) => {
   const { colors } = useTheme();
   const initial = name.trim().charAt(0).toUpperCase() || 'A';
+  // A profile photo is a remote URL (Clerk, or our own storage): a broken link
+  // must fall back to the initials rather than leave an empty circle. Reset on a
+  // new URL during render, the same way the profile screen reseeds its name.
+  const [failedUri, setFailedUri] = useState<string | null>(null);
+  const showImage = Boolean(uri) && failedUri !== uri;
   return (
     <View
       style={[
@@ -435,8 +440,13 @@ export const Avatar = ({
         },
       ]}
     >
-      {uri ? (
-        <Image source={{ uri }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+      {showImage ? (
+        <Image
+          source={{ uri: uri ?? undefined }}
+          style={{ width: '100%', height: '100%' }}
+          contentFit="cover"
+          onError={() => setFailedUri(uri ?? null)}
+        />
       ) : (
         <Text style={{ color: colors.forest, fontWeight: '800', fontSize: size * 0.38 }}>
           {initial}

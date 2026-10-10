@@ -9,7 +9,7 @@ import * as Crypto from 'expo-crypto';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, StyleSheet, Text, useAnimatedValue, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, TextButton } from '@/components/ui/primitives';
@@ -29,7 +29,7 @@ export default function IdentifyingRoute() {
 
   const [matches, setMatches] = useState(1);
   const [elapsed, setElapsed] = useState(0);
-  const progress = useRef(new Animated.Value(0)).current;
+  const progress = useAnimatedValue(0);
 
   const cancel = useCallback(async () => {
     cancelledRef.current = true;

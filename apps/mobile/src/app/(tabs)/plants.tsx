@@ -30,7 +30,8 @@ export default function MyPlantsRoute() {
   const [filterKey, setFilterKey] = useState('all');
 
   const plants = usePlants();
-  const all = plants.data?.plants ?? [];
+  // Memoized so the two filters below keep a stable dependency when the query data is unchanged.
+  const all = useMemo(() => plants.data?.plants ?? [], [plants.data]);
 
   const cardWidth = (width - spacing.xl * 2 - spacing.md) / 2;
 

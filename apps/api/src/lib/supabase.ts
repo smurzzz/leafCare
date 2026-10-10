@@ -23,6 +23,48 @@ export const supabaseAdmin = (): SupabaseClient => {
 
 export const photoBucket = (): string => env.photoBucket;
 
+/**
+ * Profile photos live in their own *public* bucket.
+ *
+ * Plant photos are private and served through short-lived signed URLs, but an
+ * avatar is shown in the app's own chrome (headers, profile) and must keep
+ * working offline and without a signing round-trip, so it is a plain public URL.
+ * Nothing sensitive is stored there: the key is the Clerk user id and the object
+ * is a photo the user chose to upload.
+ */
+export const avatarBucket = 'avatars';
+
+export const uploadToBucket = async (options: {
+  bucket: string;
+  path: string;
+  bytes: Uint8Array;
+  contentType: string;
+}): Promise<string> => {
+  const { bucket, path, bytes, contentType } = options;
+  const { error } = await supabaseAdmin()
+    .storage.from(bucket)
+    .upload(path, bytes, { contentType, upsert: true });
+  if (error) throw new Error(`Upload failed (${bucket}): ${error.message}`);
+  return path;
+};
+
+export const removeFromBucket = async (bucket: string, paths: string[]): Promise<void> => {
+  if (paths.length === 0) return;
+  await supabaseAdmin().storage.from(bucket).remove(paths);
+};
+
+export const publicUrlIn = (bucket: string, path: string): string =>
+  supabaseAdmin().storage.from(bucket).getPublicUrl(path).data.publicUrl;
+
+/** Every object under a user's avatar folder, so an old photo can be replaced. */
+export const listInBucket = async (bucket: string, prefix: string): Promise<string[]> => {
+  const { data, error } = await supabaseAdmin()
+    .storage.from(bucket)
+    .list(prefix, { limit: 100 });
+  if (error || !data) return [];
+  return data.map((entry) => `${prefix}/${entry.name}`);
+};
+
 /** Signed, short-lived read URL for a stored plant photo. */
 export const signedPhotoUrl = async (path: string | null | undefined): Promise<string | null> => {
   if (!path) return null;

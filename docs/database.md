@@ -155,6 +155,16 @@ cannot double-send.
 
 Bucket `plant-photos` — path `{clerk_user_id}/{plant_id}.jpg`. Private; signed URLs via API.
 
+Bucket `avatars` (migration `0002_avatars.sql`) — path `{clerk_user_id}/avatar-{timestamp}.{ext}`.
+Public read, because a profile photo is rendered in the app's own header with no signing round-trip
+and must keep working offline. Nothing sensitive lives there: it is a photo the user chose to upload,
+and writes still require the service role that only the API holds. Uploading replaces the previous
+object, so a user's folder holds at most one file.
+
+`npm run seed:photos -- <clerk_user_id>` fills in missing `plant.photo_path` values with the plant's
+species photo from Wikipedia (credited in the plant's notes), so the demo does not show placeholder
+art. It writes to `plant-photos` like any other upload.
+
 ## Derived fields
 
 - **Due today:** `date(next_due_at in user tz) = today`
@@ -164,6 +174,11 @@ Bucket `plant-photos` — path `{clerk_user_id}/{plant_id}.jpg`. Private; signed
 - **Missed days:** scheduled days with no watered event (compute in API)
 
 ## Seed plants (Alex Morgan)
+
+The seed writes **plants and care history only**. Identity — `full_name`, `email`,
+`avatar_url` — always comes from Clerk (`apps/api/src/lib/identity.ts`), because Clerk is the
+only identity store: seeding "Alex Morgan" onto a real account is why the app greeted a new
+sign-up as Alex. `npm run seed -- --name` opts into the demo name for a throwaway account.
 
 | Nickname | Species | Location | Interval | Status in mock |
 | --- | --- | --- | --- | --- |

@@ -36,7 +36,12 @@ const shortWeekday = (date: Date, timeZone: string): string => {
 /** Groups plants into today / tomorrow / this week. */
 export const buildRemindersPayload = async (
   context: RequestContext,
-  tab: 'upcoming' | 'completed',
+  /**
+   * Accepted for the documented `?tab=` query (docs/api.md) but deliberately not used to
+   * filter: the payload carries the upcoming groups *and* `completed`, so the app can switch
+   * segments without a second request. The route still validates the value.
+   */
+  _tab: 'upcoming' | 'completed',
 ): Promise<RemindersResponse> => {
   const rows = await listPlantRows(context.profile.clerk_user_id);
   const plants = await serializePlants(rows, context);

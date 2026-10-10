@@ -14,6 +14,12 @@ export const StorageKeys = {
   pushToken: 'leafcare.pushToken',
 } as const;
 
+/**
+ * Cache keys are scoped per Clerk user: a device can be signed into more than one
+ * account, and a cached Home payload must never render for the wrong one.
+ */
+export const userScopedKey = (base: string, userId: string): string => `${base}.${userId}`;
+
 export const readJson = async <T>(key: string): Promise<T | null> => {
   try {
     const raw = await AsyncStorage.getItem(key);

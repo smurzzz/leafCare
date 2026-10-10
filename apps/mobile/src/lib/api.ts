@@ -332,6 +332,22 @@ export const api = {
   deleteAccount: () =>
     request({ method: 'DELETE', path: '/api/me', parse: () => undefined }),
 
+  /** Profile photo (screen 21). Server stores it and answers with the full profile. */
+  uploadAvatar: (image: UploadableImage) =>
+    request<MeResponse>({
+      method: 'POST',
+      path: '/api/me/avatar',
+      form: imageFormData('image', image),
+      parse: parseWith(meResponseSchema),
+    }),
+
+  removeAvatar: () =>
+    request<MeResponse>({
+      method: 'DELETE',
+      path: '/api/me/avatar',
+      parse: parseWith(meResponseSchema),
+    }),
+
   notificationPrefs: () =>
     request<UpdateNotificationPrefsInput>({
       path: '/api/me/notifications',

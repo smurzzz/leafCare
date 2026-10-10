@@ -15,6 +15,10 @@ import { ErrorState } from '@/components/ui/feedback';
 import { TextField } from '@/components/ui/inputs';
 import { ProgressRing, Sheet, StatBlock, Tabs, TipCard } from '@/components/ui/misc';
 import { Button, Card, IconButton, SectionLabel, TextButton } from '@/components/ui/primitives';
+import { amountLabel, deviceTimeZone, formatIsoStamp, streakWeeksLabel } from '@/lib/format';
+import { useDeletePlant, usePlant, useUpdatePlant, useWaterPlant } from '@/lib/queries';
+import { EditScheduleSheet } from '@/screens/edit-schedule-sheet';
+import { useSettings } from '@/theme/settings-provider';
 
 /** Care card on the detail Care tab (Light / Water / Difficulty). */
 const CareCard = ({ title, value, detail }: { title: string; value: string; detail: string }) => {
@@ -27,10 +31,6 @@ const CareCard = ({ title, value, detail }: { title: string; value: string; deta
     </Card>
   );
 };
-import { amountLabel, deviceTimeZone, formatIsoStamp, streakWeeksLabel } from '@/lib/format';
-import { useDeletePlant, usePlant, useUpdatePlant, useWaterPlant } from '@/lib/queries';
-import { EditScheduleSheet } from '@/screens/edit-schedule-sheet';
-import { useSettings } from '@/theme/settings-provider';
 
 type Tab = 'care' | 'history' | 'notes';
 

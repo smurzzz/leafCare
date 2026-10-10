@@ -138,7 +138,7 @@ export const SegmentedControl = <T extends string>({
   onChange,
   style,
 }: {
-  options: Array<{ value: T; label: string }>;
+  options: { value: T; label: string }[];
   value: T;
   onChange: (value: T) => void;
   style?: StyleProp<ViewStyle>;
@@ -261,7 +261,7 @@ export const OtpBoxes = ({
   autoFocus?: boolean;
 }) => {
   const { colors } = useTheme();
-  const inputs = useRef<Array<TextInput | null>>([]);
+  const inputs = useRef<(TextInput | null)[]>([]);
   const digits = value.padEnd(length, ' ').slice(0, length).split('');
 
   const commit = (next: string) => {

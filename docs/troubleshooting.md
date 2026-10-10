@@ -51,6 +51,30 @@
 - Duplicate reminders: job not idempotent; key by `plant_id` + `due_date`.
 - Arrives at night: quiet hours not applied in the sender.
 
+## Expo Go on Android: every route "missing the required default export"
+
+In Expo Go on Android (SDK 53+) this cascade is **one** error repeated, not many:
+
+```
+ERROR  expo-notifications: Android Push notifications ... removed from Expo Go with SDK 53
+WARN   Route "./_layout.tsx" is missing the required default export
+WARN   Route "./(tabs)/profile.tsx" is missing the required default export
+ERROR  [TypeError: Cannot read property 'ErrorBoundary' of undefined]
+```
+
+- Cause: `expo-notifications` throws while it is being **imported** on Android in Expo Go — its
+  `index.js` re-exports `DevicePushTokenAutoRegistration.fx`, whose module body calls
+  `addPushTokenListener()` → `warnOfExpoGoPushUsage()`, which throws. A module that throws during
+  evaluation fails its whole import graph, so the root layout never gets a default export and
+  expo-router reports the *importer* of the package as a broken route. The listed routes are
+  exactly the ones that reach the package.
+- Fix: never import it statically. `src/lib/notifications.ts` loads it through a dynamic
+  `await import('expo-notifications')` inside a try/catch, so the package is evaluated on first
+  use and a failure is a skipped feature rather than a dead app. Do not move that call, or any
+  other native call, back to module scope.
+- A static `import type` / `typeof import(...)` is fine: types are erased and never evaluate.
+- Real push still needs a development build or the EAS APK; Expo Go on Android can only skip it.
+
 ## Theme / units
 
 - Theme not following OS: segmented control must be `system` and subscribe to Appearance.

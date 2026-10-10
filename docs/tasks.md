@@ -124,6 +124,8 @@ Use this as the implementation backlog. Check items in PRs / changelog when done
 - [x] No-match → uncertain screen (12) — an unmatchable photo returns 200 with `top: null`
       and is stored as `succeeded`, so the screen is reachable
 - [ ] Reminder empty state — **needs a second user with no plants**
+- [x] Offline cache readable — Home, My Plants and Reminders hydrate from the device cache on
+      launch, scoped per Clerk user, so an unreachable API no longer means an empty app
 - [ ] Offline banner on airplane mode — **needs a device**
 - [ ] Delete plant and delete account — **needs a device flow over Clerk**
 - [ ] Camera deny / allow — **needs a device**
@@ -133,9 +135,17 @@ Use this as the implementation backlog. Check items in PRs / changelog when done
 
 - [x] EAS project linked — `eas init` created `@henry26/leafcare` and replaced the
       all-zeros `extra.eas.projectId` placeholder that made `eas build` refuse
-- [ ] EAS build Android APK — run `npx eas build --platform android --profile preview` in `apps/mobile`
+- [x] Development build config — `expo-dev-client` installed and the `development` profile in
+      `eas.json` set up, so push can finally be tested off Expo Go
+- [ ] First Android build — run `npx eas build --platform android --profile preview` (APK) or
+      `--profile development` (push testing) in `apps/mobile`. The first run generates an Android
+      keystore and must be run interactively; see `deployment.md`
 - [ ] Production Clerk/Supabase/Plant.id env
 - [x] Version string on Settings matches build (read from Expo config + build number)
-- [x] Demo account seeded — Alex Morgan's six plants for the first Clerk user
+- [x] Demo account seeded — Alex Morgan's six plants for the first Clerk user (plants only:
+      identity always comes from Clerk, so a real account keeps its own name)
+- [x] Demo plant photos — `npm run seed:photos` gives each seeded plant a real species photo
+- [x] Profile photo upload — public `avatars` bucket, `POST/DELETE /api/me/avatar`, Change photo
+      in Profile
       (`npm run seed -- <clerk_user_id>`)
 - [ ] Changelog 1.0.0

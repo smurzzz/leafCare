@@ -4,7 +4,7 @@
  */
 
 import { formatClockTime, spacing, type PlantDetail } from '@leafcare/shared';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ClockIcon, CloseIcon } from '@/components/icons';
@@ -39,13 +39,18 @@ export const EditScheduleSheet = ({
   const [timeOpen, setTimeOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  useEffect(() => {
-    if (!visible) return;
+  // Every open starts from the saved schedule, and re-seeds if that schedule changes while the
+  // sheet is up. Done during render (React's "adjust state when a prop changes") instead of in
+  // an effect, so the sheet never paints the previous plant's schedule for a frame.
+  const seedKey = `${visible}|${plant.intervalDays}|${plant.reminderTime}`;
+  const [seededKey, setSeededKey] = useState(seedKey);
+  if (seedKey !== seededKey) {
+    setSeededKey(seedKey);
     setIntervalDays(plant.intervalDays);
     setHour(Number(plant.reminderTime.slice(0, 2)) || 8);
     setMinute(Number(plant.reminderTime.slice(3, 5)) || 0);
     setConfirmDelete(false);
-  }, [visible, plant.intervalDays, plant.reminderTime]);
+  }
 
   const reminderTime = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
   const recommended = plant.recommendedIntervalDays ?? plant.intervalDays;

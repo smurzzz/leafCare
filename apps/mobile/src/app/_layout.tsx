@@ -11,7 +11,7 @@ import { setSessionTokenGetter } from '@/lib/api';
 import { tokenCache, CLERK_PUBLISHABLE_KEY, isClerkConfigured } from '@/lib/clerk';
 import { registerForPushNotifications } from '@/lib/notifications';
 import { useNetworkStatus } from '@/lib/network';
-import { flushWateringQueue } from '@/lib/queries';
+import { flushWateringQueue, hydrateQueryCache, setCacheOwner } from '@/lib/queries';
 import { SetupScreen } from '@/screens/setup-screen';
 import { SettingsProvider, useTheme } from '@/theme/settings-provider';
 
@@ -24,7 +24,8 @@ const queryClient = new QueryClient({
 
 /** Bridges Clerk's session token into the API client and syncs queued taps. */
 const SessionBridge = () => {
-  const { getToken, isSignedIn } = useAuth();
+  const { getToken, isSignedIn, userId } = useAuth();
+  const hydratedFor = useRef<string | null>(null);
 
   useEffect(() => {
     setSessionTokenGetter(async () => {
@@ -35,6 +36,16 @@ const SessionBridge = () => {
       }
     });
   }, [getToken]);
+
+  // Scope cached payloads to this Clerk user, then restore them so Home, My
+  // Plants and Reminders have content before the first request finishes — or
+  // when it cannot finish at all.
+  useEffect(() => {
+    setCacheOwner(userId ?? null);
+    if (!userId || hydratedFor.current === userId) return;
+    hydratedFor.current = userId;
+    void hydrateQueryCache(queryClient).catch(() => undefined);
+  }, [userId]);
 
   useEffect(() => {
     if (!isSignedIn) return;

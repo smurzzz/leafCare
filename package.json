@@ -13,6 +13,7 @@
   "scripts": {
     "docs:check": "node -e \"const fs=require('fs'); const files=['README.md','AGENTS.md','CONTRIBUTING.md','docs/overview.md','docs/requirements.md','docs/architecture.md','docs/specification.md','docs/database.md','docs/api.md','docs/security.md','docs/ui-ux.md','docs/plan.md','docs/tasks.md','docs/testing.md','docs/deployment.md','docs/troubleshooting.md','docs/changelog.md']; const missing=files.filter(f=>!fs.existsSync(f)); if(missing.length){console.error('Missing:', missing.join(', ')); process.exit(1)} console.log('Docs present: '+files.length+' files')\"",
     "api": "npm run dev --workspace @leafcare/api",
+    "start": "npm run start --workspace @leafcare/mobile",
     "mobile": "npm run start --workspace @leafcare/mobile",
     "typecheck": "npm run typecheck --workspace @leafcare/shared && npm run typecheck --workspace @leafcare/api && npm run typecheck --workspace @leafcare/mobile",
     "lint": "npm run lint --workspace @leafcare/api && npm run lint --workspace @leafcare/mobile",

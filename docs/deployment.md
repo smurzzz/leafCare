@@ -30,6 +30,29 @@ npx eas build --platform android --profile preview
 
 iOS build needs Apple developer account; optional for the 8-week plan.
 
+## Development build (the only way to test push)
+
+**Expo Go cannot deliver a push notification on Android — remote notifications were removed from
+it in SDK 53, and the package throws on import there.** Everything upstream of the phone does work:
+`POST /api/jobs/reminders` authenticates with `x-cron-secret` (403 without it) and sends through
+Expo's push service. What is missing is a build of *our* app on the device that can receive one.
+
+```bash
+cd apps/mobile
+npx eas build --platform android --profile development
+npx expo start --dev-client        # then open the installed LeafCare dev app
+```
+
+- `expo-dev-client` is already in `package.json`; the `development` profile in `eas.json` sets
+  `developmentClient: true` and `distribution: internal`.
+- The **first** Android build asks EAS to generate a keystore. That prompt is interactive, so run it
+  yourself rather than from a script — `--non-interactive` fails when no credentials exist yet.
+- After installing, sign in and open **Notification settings** → allow notifications. That call is
+  what stores the Expo push token the reminder job reads; until a device registers one, the job
+  reports `sent: 0` no matter how many plants are due.
+- Local schedules still work in development builds too, so a due plant reminds you even with the
+  API asleep.
+
 ## App config
 
 - Name: LeafCare

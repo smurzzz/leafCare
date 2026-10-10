@@ -31,7 +31,10 @@ import {
   StorageKeys,
   clearWateringQueue,
   enqueueWatering,
+  readJson,
   readWateringQueue,
+  removeKey,
+  userScopedKey,
   writeJson,
   writeWateringQueue,
 } from './storage';
@@ -48,8 +51,52 @@ export const queryKeys = {
   species: (query: string) => ['species', query] as const,
 };
 
-const cacheWriter = <T>(key: string) => (data: T) => {
-  void writeJson(key, data);
+let cacheOwnerId: string | null = null;
+
+/** Set from the Clerk session; without it nothing is cached or hydrated. */
+export const setCacheOwner = (userId: string | null): void => {
+  cacheOwnerId = userId;
+};
+
+const cacheWriter = <T>(base: string) => (data: T) => {
+  if (!cacheOwnerId) return;
+  void writeJson(userScopedKey(base, cacheOwnerId), data);
+};
+
+/**
+ * Restores the last payloads into the query cache on launch (XC-1).
+ *
+ * Screens already fall back to their empty state only when there is no data at
+ * all, so seeding the cache is what turns "API unreachable" from an error screen
+ * into the last known plants — and it makes a cold start render instantly.
+ */
+export const hydrateQueryCache = async (client: QueryClient): Promise<void> => {
+  if (!cacheOwnerId) return;
+  const owner = cacheOwnerId;
+
+  const [home, plants, reminders] = await Promise.all([
+    readJson<HomeResponse>(userScopedKey(StorageKeys.homeCache, owner)),
+    readJson<{ plants: PlantSummary[] }>(userScopedKey(StorageKeys.plantsCache, owner)),
+    readJson<RemindersResponse>(userScopedKey(StorageKeys.remindersCache, owner)),
+  ]);
+
+  if (home) client.setQueryData(queryKeys.home, home);
+  if (plants) client.setQueryData(queryKeys.plants(), plants);
+  if (reminders) client.setQueryData(queryKeys.reminders('upcoming'), reminders);
+};
+
+/** Drops this device's cached payloads — called on sign out, and on a wipe. */
+export const clearUserCaches = async (client?: QueryClient): Promise<void> => {
+  if (!cacheOwnerId) return;
+  const owner = cacheOwnerId;
+  await Promise.all([
+    removeKey(userScopedKey(StorageKeys.homeCache, owner)),
+    removeKey(userScopedKey(StorageKeys.plantsCache, owner)),
+    removeKey(userScopedKey(StorageKeys.remindersCache, owner)),
+  ]);
+  client?.removeQueries({ queryKey: queryKeys.home });
+  client?.removeQueries({ queryKey: ['plants'] });
+  client?.removeQueries({ queryKey: ['reminders'] });
 };
 
 export const useHealth = () =>
@@ -333,6 +380,31 @@ export const useUpdateNotificationPrefs = () => {
     onSuccess: (data) => {
       client.setQueryData(['notification-prefs'], data);
       void client.invalidateQueries({ queryKey: queryKeys.me });
+    },
+    onError: (error: ApiError) => toastBus.error(error.message),
+  });
+};
+
+export const useUploadAvatar = () => {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (image: UploadableImage) => api.uploadAvatar(image),
+    onSuccess: (data: MeResponse) => {
+      // The whole profile comes back, so the header and Profile update at once.
+      client.setQueryData(queryKeys.me, data);
+      toastBus.show('Photo updated');
+    },
+    onError: (error: ApiError) => toastBus.error(error.message),
+  });
+};
+
+export const useRemoveAvatar = () => {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: api.removeAvatar,
+    onSuccess: (data: MeResponse) => {
+      client.setQueryData(queryKeys.me, data);
+      toastBus.show('Photo removed');
     },
     onError: (error: ApiError) => toastBus.error(error.message),
   });

@@ -4,7 +4,7 @@
  */
 
 import { formatClockTime, spacing, type SnoozePreset } from '@leafcare/shared';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -21,6 +21,15 @@ import { useSettings } from '@/theme/settings-provider';
 const HOURS = Array.from({ length: 24 }, (_, index) => index);
 const MINUTES = [0, 15, 30, 45];
 
+/** "HH:MM" → hours and minutes, falling back to 09:00 when the value is missing or malformed. */
+const parseClock = (value: string) => {
+  const [hour, minute] = value.split(':').map((part) => Number.parseInt(part, 10));
+  return {
+    hour: Number.isInteger(hour) ? hour : 9,
+    minute: Number.isInteger(minute) ? minute : 0,
+  };
+};
+
 export default function NotificationSettingsRoute() {
   const router = useRouter();
   const { colors } = useSettings();
@@ -28,23 +37,17 @@ export default function NotificationSettingsRoute() {
   const me = useMe();
   const update = useUpdateNotificationPrefs();
 
-  const [digestHour, setDigestHour] = useState(9);
-  const [digestMinute, setDigestMinute] = useState(0);
   const [timeOpen, setTimeOpen] = useState(false);
 
   const data = prefs.data;
   const streakDays = me.data?.stats.streakDays ?? 0;
 
-  useEffect(() => {
-    if (!data) return;
-    const [hour, minute] = (data.dailyDigestTime ?? '09:00')
-      .split(':')
-      .map((value) => Number.parseInt(value, 10));
-    setDigestHour(hour ?? 9);
-    setDigestMinute(minute ?? 0);
-  }, [data]);
+  // The saved time is the source of truth until the user picks a new one, so the picker reads
+  // from a draft instead of copying server state into state in an effect.
+  const [draft, setDraft] = useState<{ hour: number; minute: number } | null>(null);
+  const picked = draft ?? parseClock(data?.dailyDigestTime ?? '09:00');
 
-  const digestTime = `${digestHour.toString().padStart(2, '0')}:${digestMinute
+  const digestTime = `${picked.hour.toString().padStart(2, '0')}:${picked.minute
     .toString()
     .padStart(2, '0')}`;
 
@@ -106,16 +109,16 @@ export default function NotificationSettingsRoute() {
                     <Pressable
                       key={`hour-${hour}`}
                       accessibilityRole="button"
-                      onPress={() => setDigestHour(hour)}
+                      onPress={() => setDraft({ ...picked, hour })}
                       style={[
                         styles.chip,
                         {
-                          backgroundColor: hour === digestHour ? colors.forest : colors.surfaceAlt,
-                          borderColor: hour === digestHour ? colors.forest : colors.ring,
+                          backgroundColor: hour === picked.hour ? colors.forest : colors.surfaceAlt,
+                          borderColor: hour === picked.hour ? colors.forest : colors.ring,
                         },
                       ]}
                     >
-                      <Text style={{ color: hour === digestHour ? '#FFFFFF' : colors.ink, fontSize: 12, fontWeight: '700' }}>
+                      <Text style={{ color: hour === picked.hour ? '#FFFFFF' : colors.ink, fontSize: 12, fontWeight: '700' }}>
                         {hour.toString().padStart(2, '0')}
                       </Text>
                     </Pressable>
@@ -127,18 +130,18 @@ export default function NotificationSettingsRoute() {
                     <Pressable
                       key={`minute-${minute}`}
                       accessibilityRole="button"
-                      onPress={() => setDigestMinute(minute)}
+                      onPress={() => setDraft({ ...picked, minute })}
                       style={[
                         styles.chip,
                         {
-                          backgroundColor: minute === digestMinute ? colors.forest : colors.surfaceAlt,
-                          borderColor: minute === digestMinute ? colors.forest : colors.ring,
+                          backgroundColor: minute === picked.minute ? colors.forest : colors.surfaceAlt,
+                          borderColor: minute === picked.minute ? colors.forest : colors.ring,
                         },
                       ]}
                     >
                       <Text
                         style={{
-                          color: minute === digestMinute ? '#FFFFFF' : colors.ink,
+                          color: minute === picked.minute ? '#FFFFFF' : colors.ink,
                           fontSize: 12,
                           fontWeight: '700',
                         }}

@@ -5,7 +5,7 @@
 
 import { spacing, type ThemeValue, type UnitSystemValue } from '@leafcare/shared';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -27,13 +27,20 @@ export default function SettingsRoute() {
   const updateMe = useUpdateMe();
 
   const [passwordOpen, setPasswordOpen] = useState(false);
-  const [name, setName] = useState('');
 
   const profile = me.data?.profile;
+  const serverName = profile?.fullName ?? '';
 
-  useEffect(() => {
-    if (profile) setName(profile.fullName ?? '');
-  }, [profile]);
+  const [name, setName] = useState(serverName);
+  const [seededName, setSeededName] = useState(serverName);
+
+  // Adjust during render rather than in an effect (React's "store information from previous
+  // renders"): the name arrives after mount, and an effect here would paint an empty field
+  // first. Typing is never clobbered, because this only fires when the server value changes.
+  if (serverName !== seededName) {
+    setSeededName(serverName);
+    setName(serverName);
+  }
 
   const changeTheme = (next: ThemeValue) => {
     void setTheme(next);

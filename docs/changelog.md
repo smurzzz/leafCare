@@ -2,6 +2,84 @@
 
 ## Unreleased
 
+### Added — live data where the demo still showed placeholders
+
+Three gaps remained between "wired to the API" and "actually live", plus one caused by the identity
+fix above.
+
+- **Profile photo upload (screen 21).** `POST /api/me/avatar` takes a multipart `image`, stores it
+  in a new *public* `avatars` bucket under the Clerk user id, returns the whole `MeResponse`, and
+  deletes the previous object so a user's folder holds one file. `DELETE /api/me/avatar` goes back to
+  the drawn initials. Profile → Edit profile now has **Change photo** (8MB limit, JPEG/PNG/HEIC,
+  square crop) and **Remove photo**. Public read is deliberate — an avatar is app chrome and must
+  render without a signing round-trip — and writes still need the service role. Migration
+  `0002_avatars.sql`.
+- **The seeded plants had no photos at all** (`photo_path = null`), so Home, My Plants and Reminders
+  rendered placeholder art. `npm run seed:photos -- <clerk_user_id>` looks each species up on
+  Wikipedia, uploads the bytes to `plant-photos` exactly like a user upload, and credits the source
+  in the plant's notes. Re-running skips plants that already have one.
+- **The offline cache was written but never read**, so a stored cache could not help: an unreachable
+  API produced the error screen despite a valid snapshot on the device. The device cache is now
+  hydrated into the query cache on launch, which also makes a cold start render instantly. Keys are
+  scoped per Clerk user and cleared on sign out, so one account's plants cannot appear under another.
+- **A rename in the app was reverted by the identity sync**, a direct consequence of making Clerk
+  authoritative. `PATCH /api/me` now pushes the name to Clerk and drops the memoised identity, so the
+  edited name survives the next read.
+
+Also prepared the development build that push has always needed: `expo-dev-client` is installed and
+the `development` profile exists, so notifications can be tested off Expo Go (`deployment.md`).
+
+### Fixed — the app greeted a real sign-up as "Alex Morgan"
+
+The demo seed wrote Alex Morgan's identity onto whatever profile it touched, so a genuine
+account read as someone else. Three things were wrong, and only the first was obvious.
+
+- **The seed owned identity it should never have touched.** `scripts/seed.ts` upserted
+  `full_name: 'Alex Morgan'` and a fake `email` onto the caller's `clerk_user_id`. Clerk is the
+  only identity store (AGENTS.md), so the seed now writes plants and care history only and leaves
+  identity alone; `--name` opts into the demo name for a throwaway account. Documented in
+  `database.md`.
+- **Nothing ever corrected the row.** A profile was only ever written from the Clerk webhook, so a
+  name changed anywhere else stayed wrong forever. `GET /api/me` now mirrors name, email and photo
+  from Clerk, which self-heals a seeded or edited profile. Reads are memoised for 60s per user, so
+  an endpoint the app calls on every launch does not become a Clerk API amplifier.
+- **The two Clerk user shapes are not the same shape, and mixing them fails silently.** The webhook
+  payload is snake_case (`first_name`, `has_image`, `image_url`); `clerkClient().users.getUser()`
+  resolves to a camelCase SDK object (`firstName`, `hasImage`, `imageUrl`). The first version of the
+  sync read the payload shape from the SDK object, so every field was `undefined` and the sync
+  quietly did nothing — no error, no warning, no patch. `identityFromClerkSdkUser` now canonicalises
+  the SDK shape, and a test pins both.
+- The avatar now survives a broken photo URL: `Avatar` fell back to initials only when no URL was set, so a dead remote image rendered as an empty circle. It falls back on load failure too.
+- A *generated* initials PNG is not a photograph. Clerk reports `has_image: false` and serves a
+  placeholder URL in that case, so it is never stored; the app draws its own themed initials
+  instead, and a real photo (Google, or later an upload) is stored and shown.
+
+`identity.ts` holds the mapping as pure, tested logic so the webhook and the API route cannot drift
+apart again; `identityPatch` also refuses to erase a stored value with a `null` claim.
+
+### Fixed — Expo Go on Android could not boot
+
+Reported from a device run: eleven identical `expo-notifications ... removed from Expo Go with
+SDK 53` errors, four routes warned as "missing the required default export", then
+`Cannot read property 'ErrorBoundary' of undefined`. It looked like four broken screens; it was
+one bad import.
+
+- **Root cause:** `expo-notifications` throws while being *imported* on Android in Expo Go. Its
+  `index.js` re-exports `DevicePushTokenAutoRegistration.fx`, whose module body calls
+  `addPushTokenListener()` → `warnOfExpoGoPushUsage()`, and that throws. A throwing module fails
+  its entire import graph, so the root layout was never evaluated and expo-router blamed whatever
+  imported the package last — the four routes in the log are exactly its four importers.
+- `src/lib/notifications.ts` no longer imports the package statically. It is loaded through a
+  dynamic `await import('expo-notifications')` wrapped in a try/catch inside `loadNotifications()`,
+  and the foreground handler is installed on first use instead of at module scope. On Android in
+  Expo Go the module now resolves to `null` and the feature is skipped with one `console.warn`;
+  a development build or the EAS APK still gets real local and remote reminders.
+- `pushUnsupported` short-circuits registration there, so the app never asks for a permission it
+  cannot use. Typecheck, lint and `expo export --platform android` all pass, and nothing else in
+  `apps/mobile/src` calls a native namespace at module scope (checked).
+- Documented the whole cascade in `troubleshooting.md`, including why the route warnings are a
+  symptom rather than four bugs.
+
 ### Added — Phase 0 (installation)
 
 - Monorepo layout from `docs/architecture.md`: `apps/mobile` (Expo Router, TypeScript),

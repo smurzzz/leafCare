@@ -1,5 +1,6 @@
 import { verifyWebhook } from '@clerk/nextjs/webhooks';
 
+import { identityFromClerkUser, type ClerkUserLike } from '@/lib/identity';
 import { wipeUserData } from '@/lib/me';
 import { ensureProfile } from '@/lib/profile';
 import { supabaseAdmin } from '@/lib/supabase';
@@ -30,17 +31,9 @@ export const POST = async (request: Request) => {
 
   try {
     if (event.type === 'user.created' || event.type === 'user.updated') {
-      const data = event.data;
-      const email = data.email_addresses?.[0]?.email_address ?? null;
-      const fullName =
-        [data.first_name, data.last_name].filter(Boolean).join(' ').trim() ||
-        data.username ||
-        null;
-      await ensureProfile(data.id, {
-        email,
-        fullName,
-        avatarUrl: data.image_url ?? null,
-      });
+      // Same mapping the API uses, so the webhook and `GET /api/me` cannot drift.
+      const data = event.data as unknown as ClerkUserLike;
+      await ensureProfile(event.data.id, identityFromClerkUser(data));
     }
 
     if (event.type === 'user.deleted') {

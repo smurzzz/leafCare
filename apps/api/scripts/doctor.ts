@@ -125,15 +125,21 @@ const checkClerk = async (): Promise<void> => {
   }
 
   try {
-    const response = await fetch('https://api.clerk.com/v1/users?limit=1', {
+    const response = await fetch('https://api.clerk.com/v1/users?limit=100', {
       headers: { Authorization: `Bearer ${key}` },
     });
     if (!response.ok) {
       record('Clerk', false, `HTTP ${response.status} (check CLERK_SECRET_KEY)`);
       return;
     }
-    const body = (await response.json()) as { total_count?: number };
-    const total = body.total_count ?? 0;
+    // The Backend API answers with a bare JSON array — there is no `total_count` field, so
+    // reading one reported "0 user(s)" on an instance that does have users and told you to
+    // sign up for an account you had already created. The instance-wide total arrives in the
+    // `x-total-count` header when pagination is used; otherwise the page length is the count.
+    const body = (await response.json()) as unknown;
+    const users = Array.isArray(body) ? body : [];
+    const headerTotal = Number(response.headers.get('x-total-count'));
+    const total = Number.isFinite(headerTotal) && headerTotal > 0 ? headerTotal : users.length;
     record(
       'Clerk',
       true,

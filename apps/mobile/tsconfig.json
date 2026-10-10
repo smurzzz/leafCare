@@ -5,8 +5,13 @@
     "jsx": "react-jsx",
     "moduleResolution": "bundler",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx", "expo-env.d.ts", ".expo/types/**/*.ts"]
+  "include": [
+    "**/*.ts",
+    "**/*.tsx"
+  ]
 }

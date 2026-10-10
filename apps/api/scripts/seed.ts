@@ -3,10 +3,12 @@
  * screenshots (docs/database.md "Seed plants").
  *
  * Usage:
- *   npm run seed --workspace @leafcare/api -- <clerk_user_id> [--reset]
+ *   npm run seed --workspace @leafcare/api -- <clerk_user_id> [--reset] [--name]
  *
  * The Clerk user id is the only thing the script needs: profiles are created on
- * demand, exactly like the webhook would.
+ * demand, exactly like the webhook would. Identity — name, email, photo — always
+ * comes from Clerk (see lib/identity.ts), so a real account keeps its own name;
+ * pass `--name` only for a throwaway demo account that should read as Alex.
  */
 
 import './load-env';
@@ -129,8 +131,9 @@ const main = async (): Promise<void> => {
   const [clerkUserId, ...flags] = process.argv.slice(2);
   if (!clerkUserId) {
     console.error(
-      'Usage: npm run seed --workspace @leafcare/api -- <clerk_user_id> [--reset]\n' +
-        'Find the id with `npx clerk api users list` or in the Clerk dashboard.',
+      'Usage: npm run seed --workspace @leafcare/api -- <clerk_user_id> [--reset] [--name]\n' +
+        'Find the id with `npx clerk api users list` or in the Clerk dashboard.\n' +
+        'Identity comes from Clerk; --name writes "Alex Morgan" for a throwaway demo account.',
     );
     process.exit(1);
   }
@@ -140,13 +143,20 @@ const main = async (): Promise<void> => {
   const now = new Date();
   const timeZone = FALLBACK_TIME_ZONE;
 
+  // Identity fields (full_name, email, avatar_url) are deliberately NOT written
+  // here: Clerk is the only identity store, and seeding "Alex Morgan" into a real
+  // account made the app greet whoever signed up as Alex. The seed supplies the
+  // demo *plants* that Home / My Plants / Reminders need, and `GET /api/me`
+  // mirrors the real name, email and photo from Clerk. `--name` remains for
+  // populating a throwaway demo account on purpose.
+  const demoName = flags.includes('--name') ? 'Alex Morgan' : undefined;
+
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .upsert(
       {
         clerk_user_id: clerkUserId,
-        full_name: 'Alex Morgan',
-        email: 'alex.morgan@leafcare.app',
+        ...(demoName ? { full_name: demoName, email: 'alex.morgan@leafcare.app' } : {}),
         timezone: timeZone,
         theme: 'system',
         units: 'metric',

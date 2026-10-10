@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SplashMark } from '@/components/illustrations';
 
-const ROWS: Array<[string, string]> = [
+const ROWS: [string, string][] = [
   ['apps/mobile/.env', 'EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_…'],
   ['apps/mobile/.env', 'EXPO_PUBLIC_API_BASE_URL=http://<your LAN IP>:3000'],
   ['apps/api/.env.local', 'CLERK_SECRET_KEY / CLERK_WEBHOOK_SECRET'],

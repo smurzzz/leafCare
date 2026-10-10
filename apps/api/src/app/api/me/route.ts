@@ -5,7 +5,7 @@ import { authenticate } from '@/lib/auth';
 import { handle, json, noContent, preflight, readJson } from '@/lib/http';
 import { buildMePayload, updateProfile, wipeUserData } from '@/lib/me';
 import { createContext } from '@/lib/plants';
-import { ensureProfile } from '@/lib/profile';
+import { ensureProfile, pushNameToClerk, syncIdentityFromClerk } from '@/lib/profile';
 import { removeFolder } from '@/lib/supabase';
 
 export const runtime = 'nodejs';
@@ -16,7 +16,9 @@ export const OPTIONS = (request: Request) => preflight(request);
 /** GET /api/me — profile, stats, achievements and notification prefs. */
 export const GET = handle(async (request) => {
   const { clerkUserId } = await authenticate(request);
-  const profile = await ensureProfile(clerkUserId);
+  // Clerk is the identity store: refresh name/email/photo before answering, so a
+  // profile that was seeded or edited elsewhere cannot misreport who the user is.
+  const profile = await syncIdentityFromClerk(await ensureProfile(clerkUserId));
   return json(await buildMePayload(createContext(profile)));
 });
 
@@ -26,6 +28,11 @@ export const PATCH = handle(async (request) => {
   const profile = await ensureProfile(clerkUserId);
   const input = await readJson(request, (value) => updateMeSchema.parse(value ?? {}));
   const updated = await updateProfile(profile, input);
+
+  // A rename must reach Clerk, otherwise the next GET /api/me syncs the old
+  // name straight back over it.
+  if (input.fullName !== undefined) await pushNameToClerk(clerkUserId, input.fullName);
+
   return json(await buildMePayload(createContext(updated)));
 });
 

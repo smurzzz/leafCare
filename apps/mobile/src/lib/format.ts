@@ -60,7 +60,7 @@ export const daysInMonth = (monthKey: string): number => {
 };
 
 /** Leading blanks + day numbers, ready for a 7-column calendar grid. */
-export const calendarCells = (monthKey: string): Array<number | null> => {
+export const calendarCells = (monthKey: string): (number | null)[] => {
   const [year, month] = monthKey.split('-').map((value) => Number.parseInt(value, 10));
   const firstWeekday = new Date(Date.UTC(year ?? 1970, (month ?? 1) - 1, 1)).getUTCDay();
   const total = daysInMonth(monthKey);
