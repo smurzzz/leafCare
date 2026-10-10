@@ -14,10 +14,11 @@ Use this as the implementation backlog. Check items in PRs / changelog when done
       answers now fall through to the uncertain flow instead of a 502
 - [x] Apply `apps/api/supabase/migrations/0001_init.sql` — eight tables + the
       `plant-photos` bucket confirmed by `npm run doctor`
-- [ ] **Sign up one user in the app** — the seed needs a `clerk_user_id` and the Clerk
-      instance currently has zero users
+- [x] Sign up a user — one Clerk user exists and the demo data is seeded for it
 - [ ] Put real values in `apps/mobile/.env` — `EXPO_PUBLIC_PROJECT_ID` is still `xxxxxxxx`,
-      so push registration will fail on device
+      so push registration fails on device. `eas init` fills this in
+- [ ] Point `EXPO_PUBLIC_API_BASE_URL` at your machine's LAN IP (or a tunnel) before
+      running on a **physical** device — `http://localhost:3000` only resolves on a simulator
 - [x] `GET /api/health` works
 - [x] Expo app launches on a device/simulator (bundle exports cleanly for android)
 - [x] Document local run commands in README when apps exist
