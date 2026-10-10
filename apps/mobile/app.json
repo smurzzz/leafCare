@@ -1,0 +1,70 @@
+{
+  "expo": {
+    "name": "LeafCare",
+    "slug": "leafcare",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "leafcare",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "app.leafcare.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "LeafCare uses your camera to identify plants. Photos stay on your device unless you choose to save them.",
+        "NSPhotoLibraryUsageDescription": "Choose a photo of a leaf so LeafCare can identify the species."
+      }
+    },
+    "android": {
+      "package": "app.leafcare.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#163D2E",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "CAMERA",
+        "POST_NOTIFICATIONS",
+        "VIBRATE"
+      ],
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "single",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#163D2E",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 120
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "LeafCare uses your camera to identify plants. Photos stay on your device unless you choose to save them."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Choose a photo of a leaf so LeafCare can identify the species."
+        }
+      ],
+      "expo-notifications",
+      "@clerk/expo"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "00000000-0000-0000-0000-000000000000"
+      }
+    }
+  }
+}
