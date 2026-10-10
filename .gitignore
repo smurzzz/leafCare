@@ -45,6 +45,8 @@ coverage/
 *.apk
 *.aab
 *.ipa
+*.tsbuildinfo
+expo-env.d.ts
 
 # Supabase local
 supabase/.temp/
