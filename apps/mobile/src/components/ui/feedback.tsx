@@ -214,7 +214,7 @@ export const EmptyState = ({
 export const ErrorState = ({
   onRetry,
   title = 'Something went wrong',
-  body = "We couldn't reach LeafCare. Check your connection and try again — your plants are safe.",
+  body = "We couldn’t reach LeafCare. Check your connection and try again — your plants are safe.",
   illustration,
 }: {
   onRetry?: () => void;

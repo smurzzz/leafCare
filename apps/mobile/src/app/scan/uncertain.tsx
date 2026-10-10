@@ -89,7 +89,7 @@ export default function LowConfidenceRoute() {
           <Text style={[styles.question, { color: colors.forest }]}>?</Text>
         </View>
 
-        <Text style={[styles.title, { color: colors.ink }]}>We're not quite sure</Text>
+        <Text style={[styles.title, { color: colors.ink }]}>We’re not quite sure</Text>
         <Text style={[styles.body, { color: colors.muted }]}>
           The photo was a little dark or blurry. Try again in even daylight and fill the frame with
           a single leaf.

@@ -67,7 +67,7 @@ export default function NotificationSettingsRoute() {
 
         {streakDays >= 2 ? (
           <TipCard
-            title={`You're on a ${streakDays}-day streak`}
+            title={`You’re on a ${streakDays}-day streak`}
             body="Your reminders are on time. Keep it up."
           />
         ) : null}

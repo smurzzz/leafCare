@@ -158,7 +158,7 @@ export default function IdentifyingRoute() {
           <Button label="Cancel" variant="secondary" onPress={() => void cancel()} />
           <View style={{ alignItems: 'center' }}>
             <TextButton
-              label="This photo isn't a plant"
+              label="This photo isn’t a plant"
               tone="muted"
               onPress={() => void cancel()}
             />

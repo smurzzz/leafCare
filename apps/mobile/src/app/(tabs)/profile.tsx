@@ -154,7 +154,7 @@ export default function ProfileRoute() {
       <Sheet visible={privacyOpen} onClose={() => setPrivacyOpen(false)} title="Privacy">
         <TipCard
           title="Your photos"
-          body="Photos stay on your device unless you choose to save them. Identification sends the image to LeafCare's own server, which talks to the plant identification provider; we never send your photos to analytics or advertisers."
+          body="Photos stay on your device unless you choose to save them. Identification sends the image to LeafCare’s own server, which talks to the plant identification provider; we never send your photos to analytics or advertisers."
         />
         <Text style={[styles.sectionMeta, { color: colors.muted }]}>
           Account deletion removes your plants, photos, care history and streaks.

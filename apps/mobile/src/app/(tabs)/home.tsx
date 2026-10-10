@@ -108,7 +108,7 @@ export default function HomeRoute() {
             </View>
 
             <View style={styles.rowBetween}>
-              <SectionHeading title="Today's care" />
+              <SectionHeading title="Today’s care" />
               <Chip
                 tone="streak"
                 label={`${data?.streakDays ?? 0}-day streak`}

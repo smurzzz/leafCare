@@ -119,7 +119,7 @@ const request = async <T>(options: RequestOptions<T>): Promise<T> => {
     });
   } catch (error) {
     if ((error as Error)?.name === 'AbortError') throw error;
-    throw new ApiError(0, 'NETWORK_ERROR', "We couldn't reach LeafCare. Check your connection.");
+    throw new ApiError(0, 'NETWORK_ERROR', "We couldn’t reach LeafCare. Check your connection.");
   }
 
   if (response.status === 204) {

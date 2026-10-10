@@ -22,7 +22,7 @@ export default function ErrorRoute() {
   const message =
     params.message && params.message.length > 0
       ? params.message
-      : "We couldn't reach LeafCare. Check your connection and try again — your plants are safe.";
+      : "We couldn’t reach LeafCare. Check your connection and try again — your plants are safe.";
 
   const tryAgain = () => {
     // Replay what failed: the identify request can be retried while the captured
