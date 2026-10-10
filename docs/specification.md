@@ -199,6 +199,16 @@ Persist `hasOnboarded=true` after Get Started or Skip.
 - Caption **Center the leaf in the frame**
 - Bottom: gallery thumbnail (last image) · large white shutter · flash button
 
+**Auto-capture** (added after the PNG; the PNG shows the manual state)
+
+- An **Auto** pill sits between Close and Flip: leaf glyph + `Auto`, glass at rest and
+  mint when on. It is **on by default**
+- The caption carries the state: **Center the plant in the frame** while watching,
+  **Hold still** while the phone is moving, **Hold still…** once the frame is good,
+  **Identifying…** at the instant it fires
+- A slim mint progress bar under the caption fills as the frame approaches firing, and the
+  frame border turns solid mint on the frame that fires, so the capture is never a surprise
+
 **Behavior**
 
 - Close → previous tab
@@ -207,6 +217,14 @@ Persist `hasOnboarded=true` after Get Started or Skip.
 - Flash torch toggle
 - Flip front/back
 - If permission not granted → `24` instead of live camera
+- Auto on: a 64×64 frame is probed about once a second; once a plant has been centred and
+  held for three probes the shutter fires by itself and the flow continues at `10` exactly as
+  if it had been tapped. **Nothing is identified on the device** — the probe is a framing
+  heuristic (leaf-green coverage in the centre box plus texture), and the species still comes
+  from `/api/identify`
+- Auto stops while `10` is on top, while the app is in the background, and after 60 s of
+  searching it stops and asks for the shutter instead
+- Auto off: the screen is exactly the PNG — shutter only, caption unchanged
 
 ---
 

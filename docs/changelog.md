@@ -2,6 +2,105 @@
 
 ## Unreleased
 
+### Added — point the camera at a plant and it captures itself
+
+Screen 09 no longer needs the shutter tapped. An **Auto** pill (on by default) watches the frame
+and fires the shutter once a plant has been centred and held still for a moment, so the whole
+plant → species flow is "point and wait". Auto off returns the screen to exactly what the PNG
+shows.
+
+The camera runs **no model**. `expo-camera` exposes no preview frames, so the only way to see what
+the lens sees is a capture — which means the device's job is deciding *when*, never *what*:
+
+- `frame-analysis.ts` measures a 64×64 probe: leaf-green coverage in the centre box (HSV hue, so
+yellowing and dark houseplants count) and the luma gradient across it. Coverage is worth 0.72 of
+the score and texture 0.28, and the bar sits at 0.75, which is what stops a *flat* green surface
+from firing on coverage alone. Off-centre leaves are excluded by construction — only the centre
+box is measured.
+- `auto-capture.ts` is the trigger: three consecutive ready-and-steady frames, where "steady" is
+the mean-luma change between probes, so a blurred shot while the phone is still moving never
+fires. Firing is latched, and the phone being repositioned reports `holding` so the caption can
+say "Hold still" instead of leaving the user guessing.
+- `frame-probe.ts` is the camera glue: `quality: 0.2` with `skipProcessing` (orientation is
+irrelevant to a centre-box measurement and the rotation pass is what makes a probe slow), resized
+to 64×64 PNG, decoded with `upng-js`, and **both files deleted in a `finally`** — a probe runs
+about once a second, and each capture is a full-resolution JPEG however low the quality is.
+
+The thresholds come from real photographs rather than intuition. The shipped `analyzeFrame` was run
+over plants and non-plants downscaled to probe size (the full table is in `testing.md`): foliage
+close-ups score 0.89–1.00, a flat green surface 0.72, a phone on a desk 0.28, a cat 0.17, a dog a
+laptop and a skyline 0.00. Plants photographed *small* in a scene land at 0.11–0.50 and do **not**
+fire — deliberate: the caption asks for the plant to fill the frame, and that is also the photo the
+vendor answers best (32% for a distant ivy wall against 85% for a leaf close-up).
+
+Two things the tests caught before a device did:
+
+- The probe loop depended on the caller's camera-ref **object identity**, so a screen passing an
+  inline `{ current: camera }` restarted the effect on every render and spun at 4 GB of heap in
+  the hook suite. The ref is now wrapped in a ref of its own, and the effect depends on `enabled`
+  alone.
+- `base64ToBytes` filtered its input down to the base64 alphabet, which silently decoded a
+  `data:image/png;base64,` **prefix as pixels**. The prefix is now stripped properly.
+
+`enabled` also drives the reported status, so switching auto-capture off can never leave a stale
+"capturing" on screen, and the effect body sets no state at all (the first tick does it) — the
+React lint rule that flags synchronous `setState` in an effect stays on.
+
+The two new native modules are loaded through lazy `require`s, the same way
+`lib/notifications.ts` loads `expo-notifications`. That is not tidiness: the probe lives on the
+scan route, expo-router imports every route file eagerly, and `requireNativeModule` throws while a
+package is being *imported* when the build has no such module — so a static import would have
+crashed the app on any development build made before auto-capture existed, instead of quietly
+falling back to the shutter. `frame-probe-unavailable.test.ts` pins that fallback with a mock
+factory that throws at load time.
+
+**Needs a new build to demo:** `expo-image-manipulator` and `expo-file-system` are native modules,
+so the already-started preview APK `a3092468` does not contain them. And the calibration is stills
+— the probe cadence and `motionTolerance` are the values to expect tuning on a real phone.
+
+### Verified — pointing the camera at a plant really identifies it (1.8–2.8 s)
+
+Until now the identify path had only ever been proved against the deterministic `mock` provider:
+`doctor` reports that a vendor key is *present* and never calls the vendor. Ran the repo's own
+harness, `npm run identify:fixture --workspace @leafcare/api -- <photo>`, against three real leaf
+photos with the `PLANTNET_API_KEY` from `apps/api/.env.local` — Ficus lyrata top 85.1% (`high` →
+result screen 11), Monstera deliciosa top 79.1% and Hedera helix top 32.3% (`low` → uncertain
+screen 12). Correct species first each time, 1.8–2.8 s per round trip.
+
+- **0.80 is a high bar in the field, and that is the point.** The Monstera answer was *right* and
+  still lands on screen 12, so a phone-held photo of a whole plant will often open "not quite
+  sure" rather than the result. That is the specified behaviour — 12 offers retake and search
+  instead of an error — but it is worth knowing before a demo.
+- **There is no live detection.** Screen 09 runs nothing until the shutter is tapped. The frame and
+  "Center the leaf in the frame" are guidance for the photo, not a trigger: centring improves the
+  upload, it does not start one.
+- Corrected a stale `docs/testing.md` row that claimed `PGRST205` (table not found) for all eight
+  Supabase tables on the same page where the next row lists all eight as present. A direct REST
+  probe with the service-role key settles it: six tables answer 200 on `?select=id`, and
+  `notification_prefs`/`achievements` answer 400 because they have no `id` column — not because
+  they are missing. The schema is applied.
+
+### Fixed — the Android bundle carried two Reacts, and EAS guessed the environment
+
+`expo-doctor` scored 20/21 before the first APK: **two React copies**, `react@19.2.3` in the app and a
+hoisted `react@19.3.0` at the workspace root. The cause was a dev-only chain —
+`@testing-library/react-native` requires `test-renderer`, which requires `react-reconciler@~0.34.0`,
+whose peer is `react: ^19.3.0` — so npm satisfied that peer with a second copy at the root. Metro
+resolves `react` per file, so a root-level dependency that Expo bundles (`@expo/ui`, `@clerk/expo`)
+would have compiled against 19.3.0 while every screen used 19.2.3: the arrangement that produces
+"Invalid hook call" on a real device.
+
+The workspace root now declares `react` and `react-dom` **19.2.3** as dev dependencies, so npm hoists
+the one copy Expo SDK 57 pins (`expo/bundledNativeModules.json`) and nests the reconciler's own copy
+under `test-renderer`, where only the tests can see it. `jest.config.js` resolves `react` instead of
+assuming `<rootDir>/node_modules/react` exists, because after that dedupe it does not.
+
+`expo-doctor` is **21/21**, all 236 tests still pass, and the exported Android bundle holds a single
+React version literal (`19.2.3`; zero hits for `19.3.0`).
+
+Each `eas.json` profile also names its EAS environment now, so a build cannot quietly read another
+profile's variables.
+
 ### Added — the app has a real test suite, and Light is the default theme
 
 Done before the first EAS build, so the APK is handed out with the checks actually running rather

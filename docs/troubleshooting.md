@@ -123,6 +123,21 @@ ERROR  [TypeError: Cannot read property 'ErrorBoundary' of undefined]
 
 - Clerk user gone but plants remain: webhook `user.deleted` or `DELETE /api/me` failed mid-way — make DB wipe first, then Clerk.
 
+## Duplicate React (Expo doctor's "duplicate dependencies" check)
+
+- Symptom: `npx expo-doctor` fails "Check that no duplicate dependencies are installed" with
+  `react@19.2.3` in the app and another `react` at the workspace root, or a screen dies with
+  "Invalid hook call" / `Cannot read properties of null (reading 'useState')` while others are fine.
+- Cause: a package's **peer** range pulled a second React to the root. Ours was dev-only —
+  `test-renderer` (a peer of `@testing-library/react-native`) needs `react-reconciler@~0.34.0`, whose
+  peer is `react: ^19.3.0`. npm `overrides` do **not** move a peer auto-install, so `"overrides"`
+  looked right and changed nothing.
+- Fix: declare `react`/`react-dom` at the workspace root at the version `expo/bundledNativeModules.json`
+  pins (19.2.3 for SDK 57) so the hoisted copy is the app's copy, and let the reconciler keep a nested
+  one. `jest.config.js` resolves `react` for the same reason; never hard-code `<rootDir>/node_modules/react`.
+- Verify: `npx expo-doctor` → 21/21, and after `npx expo export --platform android`,
+  `grep -a -c '19\.3\.0' dist/_expo/static/js/android/*.hbc` must be 0.
+
 ## Agent pitfalls
 
 - Building the Vite UI kit as the product — wrong, see AGENTS.md

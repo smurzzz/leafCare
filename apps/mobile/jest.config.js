@@ -21,23 +21,28 @@
 // The single-platform preset: transform, babel options, mocks and asset stubs.
 const expoPreset = require('jest-expo/jest-preset');
 
+// One React per run, resolved from this app rather than assumed to sit in
+// `<rootDir>/node_modules`. The root `package.json` pins the whole workspace to the
+// version Expo SDK 57 ships (19.2.3), so npm hoists a single copy and this path *is*
+// the copy Metro bundles — which is the point: a test run on a different React than
+// the APK's would let a duplicate-dispatcher bug through.
+const path = require('path');
+const reactPath = path.dirname(require.resolve('react/package.json', { paths: [__dirname] }));
+
 /** @type {import('jest').Config} */
 const shared = {
   rootDir: __dirname,
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   // `@/…` is the Metro alias from tsconfig.json; Jest needs telling separately.
   //
-  // React is pinned to *this* app's copy. The monorepo hoists a different React
-  // for the API workspace, and two copies in one test run means the renderer and
-  // the component under test hold different dispatchers — every hook then fails
-  // with "Cannot read properties of null (reading 'useState')". Metro resolves
-  // React the same way, from the app folder, so testing this copy is also the
-  // faithful choice.
+  // Pinning `react` explicitly is what keeps the renderer and the component under
+  // test on the same dispatcher: with two copies in one run, every hook fails with
+  // "Cannot read properties of null (reading 'useState')".
   moduleNameMapper: {
     ...expoPreset.moduleNameMapper,
     '^@/(.*)$': '<rootDir>/src/$1',
-    '^react$': '<rootDir>/node_modules/react',
-    '^react/(.*)$': '<rootDir>/node_modules/react/$1',
+    '^react$': reactPath,
+    '^react/(.*)$': `${reactPath}/$1`,
   },
   testMatch: ['<rootDir>/src/**/__tests__/**/*.test.ts?(x)'],
   // Mock call history is per test; the in-memory store is cleared in the tests

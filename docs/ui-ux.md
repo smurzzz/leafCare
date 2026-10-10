@@ -88,6 +88,9 @@ Illustrations: recreate simply with RN SVG or export from the UI kit. Do not shi
 ## Motion
 
 - Identifying progress bar indeterminate + count-up of matches
+- Scan auto-capture: the mint ring under the caption fills across the probes that precede a shot,
+  and the frame border turns solid mint on the frame that fires — the capture always announces
+  itself before it happens
 - Toast slides from top
 - Sheets slide up
 - Onboarding horizontal pager

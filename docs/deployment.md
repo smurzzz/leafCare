@@ -26,13 +26,20 @@ here (`docs/testing.md`):
 npm run typecheck && npm run lint && npm test && npm run check
 ```
 
-Then:
+Then check the app's own config before spending a cloud build, and build:
 
 ```bash
 cd apps/mobile
+npx expo-doctor            # catches duplicate native modules and config drift
+npx expo install --check   # dependency versions against the SDK
 npx eas login
 npx eas build --platform android --profile preview
 ```
+
+`--non-interactive` is safe for the first Android build: with no locally installed `keytool`, EAS
+reports *"Detected that you do not have keytool installed locally. Generating keystore in the cloud…"*
+and proceeds without asking anything. Each profile in `eas.json` also names its own `environment`, so
+`preview` cannot pick up another profile's variables.
 
 - `preview` profile: APK for classroom demo
 - Production AAB only if Play Store is in scope (it is **not** required by the proposal)
@@ -80,8 +87,9 @@ npx expo start --dev-client        # then open the installed LeafCare dev app
 
 - `expo-dev-client` is already in `package.json`; the `development` profile in `eas.json` sets
   `developmentClient: true` and `distribution: internal`.
-- The **first** Android build asks EAS to generate a keystore. That prompt is interactive, so run it
-  yourself rather than from a script — `--non-interactive` fails when no credentials exist yet.
+- The **first** Android build creates the keystore for you — in the cloud, with no prompt and no
+  local `keytool` required (verified with `--non-interactive`). Keep `eas-cli` up to date, and see
+  `eas credentials` if you ever need to rotate it.
 - After installing, sign in and open **Notification settings** → allow notifications. That call is
   what stores the Expo push token the reminder job reads; until a device registers one, the job
   reports `sent: 0` no matter how many plants are due.

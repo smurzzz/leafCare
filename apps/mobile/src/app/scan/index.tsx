@@ -1,21 +1,44 @@
 /**
  * 09 — Scan camera. Live preview with the rounded leaf frame, shutter, gallery,
  * flash and flip; falls back to 24 — Camera permission when not granted.
+ *
+ * **Auto-capture** is on by default: the frame is watched about once a second and
+ * the shutter fires by itself once a plant has been centred and held still for a
+ * moment, so pointing the phone at a leaf is enough. It is a framing heuristic on
+ * the device (`frame-analysis.ts`), never a species guess — the identification
+ * still comes from the vendor via `/api/identify`. The toggle in the top row puts
+ * the screen back to exactly what the PNG shows, where the shutter is the only
+ * way to take a photo, and the caption is unchanged in both modes until a plant
+ * is actually in the frame.
  */
 
 import { palette, spacing } from '@leafcare/shared';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useRef, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { CloseIcon, FlipIcon, FlashIcon } from '@/components/icons';
+import { CloseIcon, FlipIcon, FlashIcon, LeafIcon } from '@/components/icons';
 import { CameraPermissionState, openAppSettings } from '@/screens/camera-permission';
 import { IconButton } from '@/components/ui/primitives';
+import { useAutoCapture, type AutoCaptureStatus } from '@/hooks/use-auto-capture';
 import { startScanSession } from '@/lib/scan-session';
+
+/** Screen 11 wants the real photo, not the probe frame. */
+const CAPTURE_QUALITY = 0.85;
+
+const CAPTIONS: Record<AutoCaptureStatus, string> = {
+  // The PNG's own copy, and still the copy when auto-capture is off.
+  off: 'Center the leaf in the frame',
+  searching: 'Center the plant in the frame',
+  holding: 'Hold still',
+  ready: 'Hold still…',
+  capturing: 'Identifying…',
+  gaveUp: 'Tap the shutter when the plant fills the frame',
+};
 
 export default function ScanCameraRoute() {
   const router = useRouter();
@@ -25,6 +48,17 @@ export default function ScanCameraRoute() {
   const [torch, setTorch] = useState(false);
   const [lastPhoto, setLastPhoto] = useState<string | null>(null);
   const [capturing, setCapturing] = useState(false);
+  const [autoCapture, setAutoCapture] = useState(true);
+
+  // The scan screen stays mounted underneath the identifying screen, so probing
+  // has to stop on blur or the camera would keep firing behind the result.
+  const [focused, setFocused] = useState(true);
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, []),
+  );
 
   const close = () => {
     if (router.canGoBack()) router.back();
@@ -37,11 +71,12 @@ export default function ScanCameraRoute() {
     router.push('/scan/identifying');
   };
 
-  const takePicture = async () => {
-    if (!cameraRef.current || capturing) return;
+  const capture = async (quality: number) => {
+    const camera = cameraRef.current;
+    if (!camera || capturing) return;
     setCapturing(true);
     try {
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.85, skipProcessing: false });
+      const photo = await camera.takePictureAsync({ quality, skipProcessing: false });
       if (photo?.uri) begin(photo.uri);
     } catch (error) {
       console.warn('[scan] capture failed', error);
@@ -49,6 +84,12 @@ export default function ScanCameraRoute() {
       setCapturing(false);
     }
   };
+
+  const autoState = useAutoCapture({
+    cameraRef,
+    enabled: autoCapture && focused && permission?.granted === true,
+    onCapture: () => capture(CAPTURE_QUALITY),
+  });
 
   const pickFromGallery = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -79,6 +120,9 @@ export default function ScanCameraRoute() {
     );
   }
 
+  const locked = autoState.status === 'ready' || autoState.status === 'capturing';
+  const watching = autoCapture && (autoState.status === 'searching' || autoState.status === 'holding' || locked);
+
   return (
     <View style={styles.screen}>
       <CameraView
@@ -89,7 +133,7 @@ export default function ScanCameraRoute() {
       />
 
       <View style={styles.dim} pointerEvents="none">
-        <View style={styles.frame}>
+        <View style={[styles.frame, locked && styles.frameLocked]}>
           <View style={[styles.corner, styles.cornerTopLeft]} />
           <View style={[styles.corner, styles.cornerTopRight]} />
           <View style={[styles.corner, styles.cornerBottomLeft]} />
@@ -102,6 +146,18 @@ export default function ScanCameraRoute() {
           <IconButton accessibilityLabel="Close camera" onPress={close} variant="glass">
             <CloseIcon size={18} color="#FFFFFF" />
           </IconButton>
+
+          <Pressable
+            accessibilityRole="switch"
+            accessibilityLabel="Capture automatically when a plant is centered"
+            accessibilityState={{ checked: autoCapture }}
+            onPress={() => setAutoCapture((value) => !value)}
+            style={[styles.autoToggle, autoCapture && styles.autoToggleOn]}
+          >
+            <LeafIcon size={16} color={autoCapture ? palette.forest : '#FFFFFF'} />
+            <Text style={[styles.autoLabel, autoCapture && styles.autoLabelOn]}>Auto</Text>
+          </Pressable>
+
           <IconButton
             accessibilityLabel="Flip camera"
             onPress={() => setFacing((value) => (value === 'back' ? 'front' : 'back'))}
@@ -112,7 +168,14 @@ export default function ScanCameraRoute() {
         </View>
 
         <View style={styles.captionWrap} pointerEvents="none">
-          <Text style={styles.caption}>Center the leaf in the frame</Text>
+          <Text style={styles.caption}>{CAPTIONS[autoState.status]}</Text>
+          {watching ? (
+            <View style={styles.progressTrack}>
+              <View
+                style={[styles.progressFill, { width: `${Math.round(autoState.progress * 100)}%` }]}
+              />
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.bottomRow}>
@@ -126,7 +189,7 @@ export default function ScanCameraRoute() {
 
           <IconButton
             accessibilityLabel="Take photo"
-            onPress={() => void takePicture()}
+            onPress={() => void capture(CAPTURE_QUALITY)}
             size={76}
             variant="glass"
             style={styles.shutter}
@@ -161,14 +224,31 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.35)',
   },
+  // Turning solid mint is the "about to fire" signal, so the capture is never a
+  // surprise: the frame says it before the shutter does.
+  frameLocked: { borderWidth: 3, borderColor: palette.mintIcon },
   corner: { position: 'absolute', width: CORNER, height: CORNER, borderColor: palette.mintIcon },
   cornerTopLeft: { top: -2, left: -2, borderTopWidth: 5, borderLeftWidth: 5, borderTopLeftRadius: 22 },
   cornerTopRight: { top: -2, right: -2, borderTopWidth: 5, borderRightWidth: 5, borderTopRightRadius: 22 },
   cornerBottomLeft: { bottom: -2, left: -2, borderBottomWidth: 5, borderLeftWidth: 5, borderBottomLeftRadius: 22 },
   cornerBottomRight: { bottom: -2, right: -2, borderBottomWidth: 5, borderRightWidth: 5, borderBottomRightRadius: 22 },
   chrome: { flex: 1, justifyContent: 'space-between', paddingHorizontal: spacing.xxl, paddingBottom: spacing.xxl },
-  topRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: spacing.sm },
-  captionWrap: { alignItems: 'center' },
+  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: spacing.sm },
+  autoToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    height: 36,
+    paddingHorizontal: spacing.md,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  autoToggleOn: { backgroundColor: palette.mint, borderColor: palette.mintIcon },
+  autoLabel: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
+  autoLabelOn: { color: palette.forest },
+  captionWrap: { alignItems: 'center', gap: spacing.sm },
   caption: {
     color: '#FFFFFF',
     fontSize: 14,
@@ -179,6 +259,14 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     overflow: 'hidden',
   },
+  progressTrack: {
+    width: 132,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    overflow: 'hidden',
+  },
+  progressFill: { height: 5, borderRadius: 3, backgroundColor: palette.mintIcon },
   bottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   thumb: { width: 30, height: 30, borderRadius: 8 },
   shutter: { borderWidth: 4, borderColor: 'rgba(255,255,255,0.6)', backgroundColor: 'transparent' },

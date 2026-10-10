@@ -63,6 +63,10 @@ npm run test:coverage --workspace @leafcare/mobile    # src/lib + src/theme
 | `config.test.ts` | the release-config guard: missing key, blank key, and a loopback API URL in a built app |
 | `settings-provider.test.tsx` | **Light is the default** even on a phone in dark mode; System follows the OS; a stored or server value wins |
 | `toast-bus.test.ts` | every subscriber hears a toast, and unsubscribing really stops delivery |
+| `frame-analysis.test.ts` | the auto-capture framing heuristic: a textured leaf fills the frame and passes, a flat green surface does not (which is why the bar is 0.75), the same band of leaf only counts when it is **centred**, a blue or grey frame never counts, a yellowing leaf still does, plus base64/PNG decode round trips and a decode that returns `null` instead of throwing |
+| `auto-capture.test.ts` | the firing rules: one good frame is not enough, motion resets the run and reports `holding`, a fire is latched so one plant can never fire twice, and `reset()` re-arms for the next plant |
+| `frame-probe.test.ts` | the probe measures a 64×64 PNG made from a fast (`skipProcessing`) capture and **deletes both files it created** — including when the resizer throws and when deleting itself fails |
+| `use-auto-capture.test.tsx` | the loop: no probe when disabled, in the background or with no camera; three steady frames then exactly one capture and no further probes; a camera that throws does not stop it; it gives up instead of holding the lens open |
 
 Two known properties of this setup, both verified and neither a failing check:
 
@@ -72,6 +76,64 @@ Two known properties of this setup, both verified and neither a failing check:
 - `apps/mobile/tsconfig.json` names `jest` and `node` in `compilerOptions.types`. Expo's base
   config leaves `types` unset and this project did not pick the packages up automatically, which
   left `describe`, `it`, `expect` and `jest.fn` untyped in the suites above.
+
+### Auto-capture calibration (real photographs)
+
+The framing thresholds are not intuitions: the shipped `analyzeFrame` was run over real
+photographs downscaled to a probe frame, and the scores are reproducible with the throwaway
+harness described in the changelog. Plants whose leaves fill the frame — the shot the caption
+asks for, and the shot the vendor scores highest — clear the bar with room; nothing that is not
+plant matter comes close.
+
+| Frame | Coverage | Texture | Score | Fires? |
+| --- | --- | --- | --- | --- |
+| Monstera deliciosa, leaves filling the frame | 0.68 | 1.00 | **1.00** | yes |
+| Nephrolepis (fern), leaf mass | 0.65 | 0.85 | **0.96** | yes |
+| Spathiphyllum, leaf close-up | 0.72 | 0.66 | **0.90** | yes |
+| Ficus lyrata, leaf close-up | 0.84 | 0.61 | **0.89** | yes |
+| Waterfall over moss (picsum) | 0.79 | 0.37 | 0.82 | yes — live greenery; the vendor then decides |
+| A flat leaf-green surface (synthetic) | 1.00 | 0.00 | 0.72 | **no** — this is what sets the bar at 0.75 |
+| Epipremnum on tree bark | 0.38 | 0.63 | 0.50 | no — plant too small in frame |
+| Ficus benjamina, whole tree | 0.32 | 0.70 | 0.42 | no — plant too small in frame |
+| Aloe vera on a table | 0.31 | 0.43 | 0.33 | no — plant too small in frame |
+| Phone on a desk (picsum) | 0.01 | 1.00 | 0.28 | no |
+| Cat on a branch | 0.12 | 0.61 | 0.17 | no |
+| Dog on sand / laptop / city skyline (picsum) | 0.00 | 0.00 | 0.00 | no |
+
+Two limits worth stating plainly, because they are not covered by that table:
+
+- The table is **stills**, downscaled with a box filter. The device's own resize, a live sensor
+  and a moving hand are not in it, so the numbers justify the thresholds but do not prove the
+  on-device experience. `motionTolerance` in particular is the first value to tune on a phone.
+- Every auto-capture probe is a real capture: `expo-camera` exposes no preview frames. The probe
+  deletes its files immediately, and quality 0.2 with `skipProcessing` keeps it fast, but it is
+  real camera work and real battery, which is why the loop stops after 60 s.
+
+### Verified for the Android build
+
+Before the first APK, the app config itself is checked — `expo-doctor` and `expo install --check`
+catch the failures that would otherwise only show up after a ten-minute cloud build:
+
+```bash
+cd apps/mobile
+npx expo-doctor          # 21/21 checks passed
+npx expo install --check # Dependencies are up to date
+```
+
+| Check | Result |
+| --- | --- |
+| `expo-doctor` | 21/21 — the duplicate-React failure is gone (see `troubleshooting.md`) |
+| `expo install --check` | every version matches Expo SDK 57 |
+| Exported bundle | `entry-*.hbc`, **7.1 MB** after auto-capture added `upng-js` (`pako`) and `expo-image-manipulator`, **one** React literal (`19.2.3`; no `19.3.0`) |
+| `npm ci --dry-run` | 0 — the lockfile is in sync, which is what the builder installs from |
+| EAS project | `@henry26/leafcare`, `extra.eas.projectId` set, signed in as owner |
+| EAS environments | 7 `EXPO_PUBLIC_*` variables in `preview`, `development` **and** `production` |
+| First `eas build -p android --profile preview` | keystore generated in the cloud; build `a3092468` started at 10/10/2026, 11:24 PM |
+| Auto-capture needs its **own** build | `expo-image-manipulator` and `expo-file-system` are native modules, so build `a3092468` (built before auto-capture) does not contain them and must not be used to demo it |
+
+Not part of a build, but true of the demo APK: `EXPO_PUBLIC_API_BASE_URL` is the laptop's LAN IP, so
+the app reaches the API on the same Wi-Fi only, and Google sign-in needs the release keystore's SHA-1
+registered before it will work on a device.
 
 ### Verified against a running server (real keys)
 
@@ -86,9 +148,11 @@ npm run doctor --workspace @leafcare/api    # probes each integration for real
 | `next build` | 20 routes compile |
 | `GET /api/health` | `clerk`, `supabase`, `webhook`, `push` all `true` |
 | Clerk Backend API | secret key accepted (0 users on the instance) |
-| Supabase REST | secret key authenticates; PGRST205 for all eight tables |
+| Supabase REST | secret key authenticates against the live project; all eight tables answer — `plants`, `profiles`, `identifications`, `species_cache`, `care_events`, `reminder_log` all 200 on `?select=id`; `notification_prefs` and `achievements` have no `id` column so `?select=id` is 400 (a bad column, not a missing table) |
 | Supabase Storage | `GET /storage/v1/bucket` → 200 (bucket list empty) |
-| PlantNet | key accepted, `POST …/v2/identify/all` → 404 `Species not found` for mockup images, mapped to **zero suggestions**, not a 502 |
+| Plant identification | `npm run identify:fixture --workspace @leafcare/api -- <photo>` against **real leaf photos**, through the configured provider (`plantnet`), 1.8–2.8 s per round trip: Ficus lyrata **85.1% top → `high`**, Monstera deliciosa **79.1% top → `low`**, Hedera helix **32.3% top → `low`**. The correct species was ranked first every time |
+| Identification → screen branch | 0.80 is the line: the 85.1% Ficus opens the result screen (11), the 79.1% Monstera and 32.3% ivy open the uncertain screen (12) even though the top answer was right |
+| PlantNet no-match | `POST …/v2/identify/all` → 404 `Species not found` is mapped to **zero suggestions**, not a 502 |
 | Protected routes | 401 `UNAUTHORIZED` with no token, a garbage token **and** a well-formed expired token |
 | Migration | all eight tables, both buckets and every migrated column default present |
 | Migration drift | `npm run doctor` → `7 column defaults match`; `profiles.theme` reads `light`, so `0003_profile_theme_default.sql` is applied on the live project |

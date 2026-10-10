@@ -78,6 +78,7 @@ Use this as the implementation backlog. Check items in PRs / changelog when done
 
 - [x] **24 Camera permission**
 - [x] **09 Camera** — frame, shutter, gallery, flash, flip, close
+- [x] **09 Auto-capture** — on-device framing probe, self-firing shutter, Auto toggle back to the PNG flow
 - [x] **10 Identifying** — progress, match count, cancel
 - [x] **11 Scan result** — % match, care tiles, alternatives, add, retake
 - [x] **12 Low confidence** — tips, possible matches, retake, search manually
@@ -137,6 +138,9 @@ Use this as the implementation backlog. Check items in PRs / changelog when done
 - [ ] Offline banner on airplane mode — **needs a device**
 - [ ] Delete plant and delete account — **needs a device flow over Clerk**
 - [ ] Camera deny / allow — **needs a device**
+- [ ] Auto-capture in a hand — **needs a device**: the probe cadence and above all
+      `motionTolerance` are hours-of-camera values, and the framing thresholds are calibrated
+      from still photographs, not a live preview (see testing.md)
 - [ ] Record results in testing.md notes if needed
 
 ## Phase 5 — Deployment

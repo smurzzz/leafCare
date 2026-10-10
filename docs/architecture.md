@@ -65,7 +65,9 @@ Until Phase 0, only docs exist at the repo root.
 
 ## Identification flow
 
-1. User captures JPEG.
+1. User captures JPEG — either by tapping the shutter or, with auto-capture on, without
+tapping: screen 09 probes the frame about once a second and fires when a plant has been centred
+and held (a framing heuristic on the device; nothing is identified locally).
 2. App requests camera permission screen if needed.
 3. App shows identifying sheet immediately.
 4. `POST /api/identify` with multipart image.
