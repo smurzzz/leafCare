@@ -103,6 +103,9 @@ The demo account is seeded and the whole signed-in surface is exercised end to e
   response.
 - RLS confirmed against the live database: the publishable key that ships in the app sees
   0 rows where the service role sees 6 plants, 1 profile and 31 care events.
+- The no-match branch is exercised end to end: an unmatchable photo returns `200` with
+  `top: null` and `threshold: "low"` (previously `422`), and the row is stored as
+  `succeeded` with empty suggestions rather than `failed`.
 
 Added:
 

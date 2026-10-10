@@ -120,8 +120,8 @@ Use this as the implementation backlog. Check items in PRs / changelog when done
 - [ ] Sign in with the same account to check the client's own request/response round trip
 - [ ] Identify high vs low confidence on device — **needs a device and a real leaf photo**
       (the vendor path is verified only as far as auth + no-match; see testing.md)
-- [ ] No-match → uncertain screen (12) — the route change is typechecked but a no-match
-      through the signed-in endpoint has not been exercised
+- [x] No-match → uncertain screen (12) — an unmatchable photo returns 200 with `top: null`
+      and is stored as `succeeded`, so the screen is reachable
 - [ ] Reminder empty state — **needs a second user with no plants**
 - [ ] Offline banner on airplane mode — **needs a device**
 - [ ] Delete plant and delete account — **needs a device flow over Clerk**

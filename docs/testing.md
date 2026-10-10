@@ -65,6 +65,7 @@ means the API's JSON satisfies the client contract, not merely that it returned 
 | `GET /api/plants/:id` | detail contract passes |
 | `POST /api/plants/:id/water` | 200, and the next read shows Ficus `overdue` → `upcoming` |
 | Home parity | `dueCount=3`, three due rows, **Ficus `Overdue 2d`** as the screenshots show |
+| `POST /api/identify` (unmatchable photo) | **200** `{"threshold":"low","top":null,"alternatives":[]}` in ~3.6 s — no error envelope, so the app routes to screen 12 instead of the error screen; the row is stored `status=succeeded` with empty suggestions |
 
 Row-level security, checked against the live database:
 
@@ -78,9 +79,10 @@ Row-level security, checked against the live database:
 With no `apikey` header the REST API answers 401. Anonymous clients therefore cannot read a
 seeded user's data even with the key that ships inside the app.
 
-**Not covered:** the vendor's success path needs a real leaf photo — every image in
-`docs/screenshots/` is a UI mockup and matches nothing. The client's own request/response
-round trip, camera, offline and push all still need a device.
+**Not covered:** the vendor's *success* path needs a real leaf photo — every image in
+`docs/screenshots/` is a UI mockup, which is exactly why the no-match branch above could be
+exercised but the matched branch could not. The client's own rendering, camera, offline and
+push all still need a device.
 
 ### Verified against a running server (no keys)
 
