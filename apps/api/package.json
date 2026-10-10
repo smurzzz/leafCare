@@ -11,7 +11,8 @@
     "seed": "tsx scripts/seed.ts",
     "job:reminders": "tsx scripts/run-reminder-job.ts",
     "doctor": "tsx scripts/doctor.ts",
-    "identify:fixture": "tsx scripts/identify-fixture.ts"
+    "identify:fixture": "tsx scripts/identify-fixture.ts",
+    "smoke": "tsx scripts/smoke.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.9.14",

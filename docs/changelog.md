@@ -92,6 +92,18 @@ Verified once the schema was applied: all eight tables and the `plant-photos` bu
 and `POST /api/jobs/reminders` returns `{"ok":true,"sent":0,"users":0}` against the live
 database (0 users have a push token yet) while a wrong `x-cron-secret` still gets a 403.
 
+## Unreleased — signed-in verification
+
+The demo account is seeded and the whole signed-in surface is exercised end to end:
+
+- `npm run smoke --workspace @leafcare/api -- <clerk_user_id>` mints a real Clerk session
+  and validates every endpoint against the client's own zod contracts (10/10). Home matches
+  the screenshots: `dueCount=3` with Ficus `Overdue 2d`.
+- Marking watered persists — Ficus reads back as `upcoming` rather than trusting the write
+  response.
+- RLS confirmed against the live database: the publishable key that ships in the app sees
+  0 rows where the service role sees 6 plants, 1 profile and 31 care events.
+
 Added:
 
 - `npm run doctor --workspace @leafcare/api` — probes Supabase REST, the photo bucket,

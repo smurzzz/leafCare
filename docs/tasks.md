@@ -110,16 +110,21 @@ Use this as the implementation backlog. Check items in PRs / changelog when done
 - [x] Identify threshold, streak, next-due and unit conversion (automated)
 - [x] API typechecks and `next build` renders every route
 - [x] Expo bundle exports for Android without errors
-- [ ] Auth happy path + Google — **needs live Clerk keys**
+- [x] Signed-in backend flow — `npm run smoke` mints a real Clerk session and validates
+      every endpoint against the client's own zod schemas (10/10 passing)
+- [x] Save plant appears on Home and My Plants — six seeded plants, three due rows on Home
+- [x] Mark watered persists — Ficus went `overdue` → `upcoming` on the next read
+- [x] Reminder filled state — 2 groups, `empty: false`
+- [x] RLS blocks anonymous reads — publishable key sees 0 rows where the API sees 6/1/31
+- [ ] Auth happy path + Google on a device — **needs a device**
+- [ ] Sign in with the same account to check the client's own request/response round trip
 - [ ] Identify high vs low confidence on device — **needs a device and a real leaf photo**
       (the vendor path is verified only as far as auth + no-match; see testing.md)
-- [ ] No-match → uncertain screen (12) — code path there, but only reachable with a
-      signed-in user, so it still needs the sign-up above
-- [ ] Save plant appears on Home and My Plants — **needs Supabase**
-- [ ] Mark watered from three surfaces + toast — **needs Supabase**
-- [ ] Reminder empty vs filled — **needs Supabase**
+- [ ] No-match → uncertain screen (12) — the route change is typechecked but a no-match
+      through the signed-in endpoint has not been exercised
+- [ ] Reminder empty state — **needs a second user with no plants**
 - [ ] Offline banner on airplane mode — **needs a device**
-- [ ] Delete plant and delete account — **needs Supabase + Clerk**
+- [ ] Delete plant and delete account — **needs a device flow over Clerk**
 - [ ] Camera deny / allow — **needs a device**
 - [ ] Record results in testing.md notes if needed
 
@@ -128,5 +133,6 @@ Use this as the implementation backlog. Check items in PRs / changelog when done
 - [ ] EAS build Android APK — run `npx eas build --platform android --profile preview` in `apps/mobile`
 - [ ] Production Clerk/Supabase/Plant.id env
 - [x] Version string on Settings matches build (read from Expo config + build number)
-- [ ] Demo account seeded — run the seed script once Supabase + a Clerk user exist
+- [x] Demo account seeded — Alex Morgan's six plants for the first Clerk user
+      (`npm run seed -- <clerk_user_id>`)
 - [ ] Changelog 1.0.0

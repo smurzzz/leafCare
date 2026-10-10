@@ -49,10 +49,38 @@ npm run doctor --workspace @leafcare/api    # probes each integration for real
 | Cron job | `POST /api/jobs/reminders` → `{"ok":true,"sent":0,"users":0}` against the live database; 403 with a wrong `x-cron-secret` |
 | CORS | preflight + GET carry `Access-Control-Allow-Origin` for `APP_ORIGIN`; a foreign origin gets none |
 
+### Signed-in flow (seeded demo account)
+
+```bash
+npm run smoke --workspace @leafcare/api -- <clerk_user_id> [baseUrl]
+```
+
+Mints a real Clerk session through the Backend API and calls every signed-in endpoint,
+validating each response with the **same zod schema the mobile app enforces** — so a pass
+means the API's JSON satisfies the client contract, not merely that it returned 200.
+
+| Endpoint | Result |
+| --- | --- |
+| `GET /api/me`, `/api/home`, `/api/plants`, `/api/reminders`, `/api/care-log`, `/api/species?q=f` | 10/10 contract checks pass |
+| `GET /api/plants/:id` | detail contract passes |
+| `POST /api/plants/:id/water` | 200, and the next read shows Ficus `overdue` → `upcoming` |
+| Home parity | `dueCount=3`, three due rows, **Ficus `Overdue 2d`** as the screenshots show |
+
+Row-level security, checked against the live database:
+
+| Query | Service role (the API) | Publishable key (public) |
+| --- | --- | --- |
+| `plants` | 6 | 0 |
+| `profiles` | 1 | 0 |
+| `care_events` | 31 | 0 |
+| `notification_prefs` | 1 | 0 |
+
+With no `apikey` header the REST API answers 401. Anonymous clients therefore cannot read a
+seeded user's data even with the key that ships inside the app.
+
 **Not covered:** the vendor's success path needs a real leaf photo — every image in
-`docs/screenshots/` is a UI mockup and matches nothing. Any signed-in flow (plants, water,
-reminders, care log) is blocked until the migration is applied, because there is no user id
-to authenticate with yet.
+`docs/screenshots/` is a UI mockup and matches nothing. The client's own request/response
+round trip, camera, offline and push all still need a device.
 
 ### Verified against a running server (no keys)
 
