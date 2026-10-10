@@ -18,6 +18,14 @@ JSON errors:
 
 `GET /api/health` → `{ "ok": true }`
 
+Also reports which integrations are configured (`integrations.clerk`,
+`integrations.supabase`, `integrations.identifyProvider`, …) so the app can show
+a useful setup state instead of failing silently:
+
+```json
+{ "ok": true, "service": "leafcare-api", "integrations": { "clerk": true, "supabase": true, "identifyProvider": "mock", "webhook": true, "push": false } }
+```
+
 ## Identify
 
 `POST /api/identify`  
@@ -138,12 +146,38 @@ Groups: `today`, `tomorrow`, `this_week` with `{ plantId, title: "Water Monty", 
 
 `DELETE /api/me` — delete all user rows, storage, then caller deletes Clerk user (or API uses Clerk backend SDK).
 
+## Jobs
+
+`POST /api/jobs/reminders` — scheduler entry point (cron every 15 minutes).
+Guarded by `CRON_SECRET` via the `x-cron-secret` header. Sends the per-plant due
+push and the daily digest, honours quiet hours (10:00 PM–7:00 AM local), skips
+snoozed plants and de-duplicates on `reminder_log (plant_id, due_date, kind)`.
+
+```json
+{ "ok": true, "sent": 3, "users": 1 }
+```
+
 ## Webhooks
 
 `POST /api/webhooks/clerk` — `user.created` upsert profile; `user.deleted` cascade wipe.
 
-Verify `CLERK_WEBHOOK_SECRET`.
+Verified with Clerk's `verifyWebhook` against `CLERK_WEBHOOK_SECRET`
+(`CLERK_WEBHOOK_SIGNING_SECRET` is accepted as an alias).
 
 ## Plant.id mapping (server)
 
 Do not document vendor keys in the client. Map `suggestions[].name` + `probability` to our DTO. If care data missing, default interval 7 days, light “Bright indirect”, difficulty “Easy”.
+
+`IDENTIFY_PROVIDER` selects `plant_id`, `plantnet` or `mock`. `mock` is the
+default when no vendor key is configured: it hashes the uploaded bytes so the same
+photo always yields the same species, with a top score that crosses the 0.80
+threshold in both directions. It exists so the capture flow, the high-confidence
+result screen and the low-confidence screen are all reachable without vendor spend.
+
+## Photo handling
+
+The identify endpoint reads the multipart `image` (max 8 MB, jpeg/png/heic) and
+does **not** persist it — only the provider JSON is stored in `identifications`.
+A photo reaches Storage only when the user saves the plant, matching the promise
+on the permission screen: “Photos stay on your device unless you choose to save
+them.”

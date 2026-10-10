@@ -13,6 +13,30 @@
 
 Keep a checked-in **monstera leaf JPEG** (not a secret) under `apps/api/fixtures/monstera.jpg` for API tests. Mock Plant.id in CI; live key only locally.
 
+## Automated checks in this repo
+
+```bash
+npm run typecheck     # packages/shared + apps/api + apps/mobile
+npm test              # shared domain math + identify provider contract
+```
+
+- `tests/shared-domain.test.mjs` — `next_due_at`, overdue/due-today/upcoming
+  classification and pill copy, the 0.80 identify threshold, streak rules,
+  achievements and ml↔oz conversion (including a DST boundary).
+- `apps/api/tests/identify-provider.test.ts` — the deterministic mock provider is
+  stable for identical bytes, returns descending scores, enriches care defaults
+  inside 1–60 days, and produces both `high` and `low` results across photos so
+  screens 11 and 12 are both reachable without a vendor key.
+
+### Verified against a running server (no keys)
+
+`GET /api/health` → 200 with an `integrations` report; every protected route
+(`/api/home`, `/api/plants`, `/api/reminders`, `/api/care-log`, `/api/me`,
+`/api/me/notifications`, `/api/species`, `POST /api/identify`) → 401 with the
+`{ error: { code, message } }` envelope when the bearer token is missing;
+`POST /api/webhooks/clerk` → 400 when the signature is absent; missing secrets
+surface as 503 `CONFIG_ERROR` naming the variable instead of a 500.
+
 ## Screen UAT checklist
 
 For each ID 01–27:

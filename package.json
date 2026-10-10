@@ -16,6 +16,9 @@
     "mobile": "npm run start --workspace @leafcare/mobile",
     "typecheck": "npm run typecheck --workspace @leafcare/shared && npm run typecheck --workspace @leafcare/api && npm run typecheck --workspace @leafcare/mobile",
     "lint": "npm run lint --workspace @leafcare/api && npm run lint --workspace @leafcare/mobile",
+    "test": "npm run test:shared && npm run test:api",
+    "test:shared": "node tests/shared-domain.test.mjs",
+    "test:api": "npm run test --workspace @leafcare/api",
     "seed": "npm run seed --workspace @leafcare/api"
   }
 }

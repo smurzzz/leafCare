@@ -6,6 +6,13 @@ Enable RLS on all tables. Users `select/insert/update/delete` only where `clerk_
 
 If Clerk↔Supabase JWT is not ready in Phase 1, all mutations go through Next.js with service role **and** explicit `WHERE clerk_user_id = $userId`. Never expose the service role to Expo.
 
+**Implemented:** every request is authenticated with a Clerk bearer token and
+handled in Next.js with the service role, with `WHERE clerk_user_id = <verified sub>`
+on every query (see `apps/api/src/lib/auth.ts` and `apps/api/src/lib/plants.ts`).
+RLS is still enabled on all tables with policies that read the Clerk `sub` claim
+via `public.current_clerk_user_id()`, so a leaked anon key stays inert. The
+migration is `apps/api/supabase/migrations/0001_init.sql`.
+
 ## Enums
 
 ```sql
@@ -116,10 +123,33 @@ Index `(clerk_user_id, next_due_at)`.
 
 | Column | Type | Notes |
 | --- | --- | --- |
-| user_id | uuid | |
+| clerk_user_id | text | part of pk |
 | key | text | `first_plant`, `streak_7`, `plants_10`, `streak_30` |
 | unlocked_at | timestamptz | |
-| pk (user_id, key) | | |
+| pk (clerk_user_id, key) | | |
+
+### reminder_log
+
+Push idempotency (Phase 3). One row per (plant, due date, kind) so a retried job
+cannot double-send.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | uuid pk | |
+| clerk_user_id | text | |
+| plant_id | uuid fk plants on delete cascade | |
+| due_date | date | |
+| kind | reminder_kind | `due` \| `digest` \| `overdue` |
+| sent_at | timestamptz | |
+| unique (plant_id, due_date, kind) | | |
+
+## Extra columns added during implementation
+
+- `plants.snoozed_until timestamptz` — snooze moves the notification without
+  moving the watering schedule.
+- `plants.light`, `plants.difficulty` — cached care values from the identification
+  so the detail Care tab does not depend on the species cache.
+- `notification_prefs.created_at/updated_at`, `care_events.created_at` — audit only.
 
 ## Storage
 
