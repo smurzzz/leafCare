@@ -100,13 +100,21 @@ Use this as the implementation backlog. Check items in PRs / changelog when done
 - [x] Snooze reschedule
 - [x] Overdue nudge next day
 - [x] Quiet hours 10:00 PM–7:00 AM
-- [x] Theme Light/System/Dark applied globally
+- [x] Theme Light/System/Dark applied globally — **Light is the default** (app, `profiles.theme`
+      and the seed), System follows the phone, an explicit choice wins
+- [x] Local fallback reminder scheduled per plant — follows the server's schedule on create, water,
+      edit, reset and delete, so reminders fire even when the API cannot be reached
 - [x] Metric/Imperial conversion on volumes
 - [x] Achievement unlock first plant / 7-day / 10 plants / 30-day
 - [ ] App icon + native splash (placeholder Expo assets still in place)
 
 ## Phase 4 — Testing
 
+- [x] Mobile unit suite under Jest — `jest-expo` on iOS and Android, 12 suites / 236 assertions
+      (`npm test`), covering formatting copy, validation, per-user cache scoping, the offline
+      queue, reminder scheduling, the config guard and the theme default
+- [x] Offline cache hydration and cache-key scoping (automated)
+- [x] Reminder scheduling and cancellation, permission and push-token flow (automated)
 - [x] Overdue badge math (automated in `tests/shared-domain.test.mjs`)
 - [x] Identify threshold, streak, next-due and unit conversion (automated)
 - [x] API typechecks and `next build` renders every route
@@ -137,6 +145,13 @@ Use this as the implementation backlog. Check items in PRs / changelog when done
       all-zeros `extra.eas.projectId` placeholder that made `eas build` refuse
 - [x] Development build config — `expo-dev-client` installed and the `development` profile in
       `eas.json` set up, so push can finally be tested off Expo Go
+- [x] Build configuration in EAS — the seven `EXPO_PUBLIC_*` values pushed to the `development`,
+      `preview` and `production` environments, so a build is not missing its config the way a
+      gitignored `.env` would leave it
+- [x] Release builds can reach an HTTP API — `expo-build-properties` sets
+      `android.usesCleartextTraffic`, verified in the generated main manifest (not the debug one)
+- [x] Misconfigured build fails loudly — `releaseConfigIssue()` names the missing value at startup
+      instead of opening into an app that cannot sign in
 - [ ] First Android build — run `npx eas build --platform android --profile preview` (APK) or
       `--profile development` (push testing) in `apps/mobile`. The first run generates an Android
       keystore and must be run interactively; see `deployment.md`

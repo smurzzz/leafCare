@@ -27,6 +27,7 @@ import {
 } from '@tanstack/react-query';
 
 import { ApiError, api, type UploadableImage } from './api';
+import { cancelPlantReminder, schedulePlantReminder } from './notifications';
 import {
   StorageKeys,
   clearWateringQueue,
@@ -41,7 +42,6 @@ import {
 import { toastBus } from './toast-bus';
 
 export const queryKeys = {
-  health: ['health'] as const,
   me: ['me'] as const,
   home: ['home'] as const,
   plants: (filter = 'all', query = '') => ['plants', filter, query] as const,
@@ -98,14 +98,6 @@ export const clearUserCaches = async (client?: QueryClient): Promise<void> => {
   client?.removeQueries({ queryKey: ['plants'] });
   client?.removeQueries({ queryKey: ['reminders'] });
 };
-
-export const useHealth = () =>
-  useQuery({
-    queryKey: queryKeys.health,
-    queryFn: api.health,
-    staleTime: 60_000,
-    retry: 1,
-  });
 
 export const useMe = (enabled = true) =>
   useQuery({
@@ -199,6 +191,23 @@ const invalidatePlantData = async (client: QueryClient, plantId?: string): Promi
 };
 
 /** Optimistically removes a plant from today's care / due groups. */
+/**
+ * Mirrors the server's schedule into the device's local notification, so a plant
+ * still reminds the user when the API is unreachable. Every path inside
+ * `notifications.ts` is best-effort, so this can never fail a mutation.
+ */
+const syncLocalReminder = async (plant: {
+  id: string;
+  nickname: string;
+  nextDueAt: string | null;
+}): Promise<void> => {
+  await schedulePlantReminder({
+    plantId: plant.id,
+    nickname: plant.nickname,
+    nextDueAt: plant.nextDueAt,
+  });
+};
+
 const optimisticallyWater = (client: QueryClient, plantId: string): void => {
   client.setQueryData<HomeResponse>(queryKeys.home, (current) => {
     if (!current) return current;
@@ -253,6 +262,7 @@ export const useWaterPlant = (): UseMutationResult<WaterPlantResponse, ApiError,
     onSuccess: async (data, variables) => {
       toastBus.show(data.message);
       await invalidatePlantData(client, variables.plantId);
+      await syncLocalReminder(data.plant);
     },
     onError: async (error, variables) => {
       if (error instanceof ApiError && error.isOffline) {
@@ -303,6 +313,7 @@ export const useCreatePlant = () => {
     onSuccess: async (data) => {
       toastBus.show(`${data.plant.nickname} added`);
       await invalidatePlantData(client, data.plant.id);
+      await syncLocalReminder(data.plant);
     },
     onError: (error: ApiError) => toastBus.error(error.message),
   });
@@ -319,6 +330,8 @@ export const useUpdatePlant = () => {
     onSuccess: async (data, variables) => {
       client.setQueryData(queryKeys.plant(variables.id), data);
       await invalidatePlantData(client, variables.id);
+      // The edit may have moved the schedule, so the local reminder follows it.
+      await syncLocalReminder(data.plant);
     },
     onError: (error: ApiError) => toastBus.error(error.message),
   });
@@ -331,6 +344,8 @@ export const useDeletePlant = () => {
     onSuccess: async (_data, variables) => {
       toastBus.show(`${variables.nickname} removed`);
       await invalidatePlantData(client);
+      // A deleted plant must not keep nagging from the notification tray.
+      await cancelPlantReminder(variables.id);
     },
     onError: (error: ApiError) => toastBus.error(error.message),
   });
@@ -344,6 +359,7 @@ export const useResetSchedule = () => {
       client.setQueryData(queryKeys.plant(data.plant.id), data);
       await invalidatePlantData(client, data.plant.id);
       toastBus.show('Schedule reset to recommended');
+      await syncLocalReminder(data.plant);
     },
     onError: (error: ApiError) => toastBus.error(error.message),
   });

@@ -102,7 +102,8 @@ Useful checks:
 
 ```bash
 npm run typecheck      # shared + api + mobile
-npm test               # shared domain math + identify provider contract
+npm run lint           # api eslint + mobile expo lint
+npm test               # shared math + api suites + mobile Jest suite (iOS + Android)
 npm run check          # docs present + scan tracked files for credentials
 ```
 

@@ -9,7 +9,6 @@
 import {
   careLogResponseSchema,
   errorResponseSchema,
-  healthResponseSchema,
   homeResponseSchema,
   identifyResponseSchema,
   meResponseSchema,
@@ -185,9 +184,6 @@ const plantFormData = (payload: Record<string, unknown>, image?: UploadableImage
 };
 
 export const api = {
-  health: () =>
-    request({ path: '/api/health', parse: parseWith(healthResponseSchema) }),
-
   identify: (image: UploadableImage, options: { signal?: AbortSignal; requestId?: string }) =>
     request<IdentifyResponse>({
       method: 'POST',

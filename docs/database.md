@@ -13,6 +13,9 @@ RLS is still enabled on all tables with policies that read the Clerk `sub` claim
 via `public.current_clerk_user_id()`, so a leaked anon key stays inert. The
 migration is `apps/api/supabase/migrations/0001_init.sql`.
 
+Applied in order: `0001_init.sql` (schema + RLS), `0002_avatars.sql` (avatar
+bucket + policies), `0003_profile_theme_default.sql` (Light is the default theme).
+
 ## Enums
 
 ```sql
@@ -36,7 +39,7 @@ create type identify_status as enum ('pending', 'succeeded', 'failed', 'cancelle
 | full_name | text | |
 | email | text | |
 | avatar_url | text | |
-| theme | text default `system` | `light` \| `system` \| `dark` |
+| theme | text default `light` | `light` \| `system` \| `dark` |
 | units | text default `metric` | `metric` \| `imperial` |
 | timezone | text default `Asia/Manila` | |
 | current_streak_days | int default 0 | |

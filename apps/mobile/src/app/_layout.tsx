@@ -9,6 +9,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { OfflineBannerHost, ToastProvider } from '@/components/ui/feedback';
 import { setSessionTokenGetter } from '@/lib/api';
 import { tokenCache, CLERK_PUBLISHABLE_KEY, isClerkConfigured } from '@/lib/clerk';
+import { releaseConfigIssue } from '@/lib/config';
 import { registerForPushNotifications } from '@/lib/notifications';
 import { useNetworkStatus } from '@/lib/network';
 import { flushWateringQueue, hydrateQueryCache, setCacheOwner } from '@/lib/queries';
@@ -106,28 +107,43 @@ const RootNavigator = () => {
   );
 };
 
-const ThemedApp = () => (
-  <GestureHandlerRootView style={{ flex: 1 }}>
-    <SafeAreaProvider>
-      <ToastProvider>
-        <SessionBridge />
-        <OfflineSync />
-        <NetworkChrome />
-        <RootNavigator />
-        <StatusBar style="auto" />
-      </ToastProvider>
-    </SafeAreaProvider>
-  </GestureHandlerRootView>
-);
+const ThemedApp = () => {
+  // The status bar follows the app's theme, not the phone's: the app is Light by
+  // default, so `style="auto"` on a phone in dark mode would put light icons on
+  // the cream background and make them unreadable.
+  const { resolvedTheme } = useTheme();
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <ToastProvider>
+          <SessionBridge />
+          <OfflineSync />
+          <NetworkChrome />
+          <RootNavigator />
+          <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} />
+        </ToastProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
+  );
+};
 
 export default function RootLayout() {
   // Without a publishable key Clerk cannot boot at all, so show the setup guide
-  // rather than crashing on a white screen.
-  if (!isClerkConfigured()) {
+  // rather than crashing on a white screen. In a *built* app there is nobody to
+  // edit a .env file, so an unusable configuration is reported as a problem with
+  // the build — a silent white app would look like the phone's fault.
+  const configIssue = isClerkConfigured()
+    ? __DEV__
+      ? null
+      : releaseConfigIssue()
+    : 'EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY is missing';
+
+  if (configIssue) {
     return (
       <SafeAreaProvider>
         <SettingsProvider>
-          <SetupScreen />
+          <SetupScreen variant={__DEV__ ? 'dev' : 'build'} issue={configIssue} />
         </SettingsProvider>
       </SafeAreaProvider>
     );

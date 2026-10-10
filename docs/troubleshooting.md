@@ -51,6 +51,37 @@
 - Duplicate reminders: job not idempotent; key by `plant_id` + `due_date`.
 - Arrives at night: quiet hours not applied in the sender.
 
+## A built APK says "This build is incomplete"
+
+- Symptom: the installed app opens straight into the dark setup screen instead of sign-in, or shows
+  every screen's error state. Nothing on the phone explains why.
+- Cause: **`.env` is gitignored, so EAS never uploads it.** `eas build` excludes anything matched by
+  `.gitignore` (unless a `.easignore` says otherwise), so `apps/mobile/.env` is absent from the build
+  and every `EXPO_PUBLIC_*` value is undefined: no Clerk publishable key, no API URL, no Supabase
+  URL. The bundle then falls back to `http://localhost:3000`, which on a phone is the phone.
+- Fix: put the values in the **EAS environment**, not a file — `cd apps/mobile && npx eas env:push
+  --environment preview --path .env --force` (repeat for `development` and `production`; verify with
+  `npx eas env:list --environment preview`). All seven values are `EXPO_PUBLIC_*`, which are public by
+  design and ship inside every bundle, so this leaks nothing.
+- `releaseConfigIssue()` in `lib/config.ts` now fails loudly at startup in a release build, naming the
+  exact value that is missing, instead of presenting an app that looks broken.
+
+## A built APK cannot reach the API over http://
+
+- Symptom: the app installs and runs, but every request fails — in a *release* build only; the same
+  code works in Expo Go and in debug builds.
+- Cause: Android blocks cleartext HTTP by default from `targetSdkVersion` 28 onward, and Expo's
+  template only sets `usesCleartextTraffic` in the **debug** manifest. A release APK therefore cannot
+  call `http://192.168.100.133:3000`.
+- Verified directly: `npx expo prebuild --platform android --no-install`, then
+  `grep usesCleartextTraffic android/app/src/main/AndroidManifest.xml`. Without the config below the
+  main manifest has **0** occurrences (the debug one has 1); with it, the main manifest carries
+  `android:usesCleartextTraffic="true"`, which is what a release build uses.
+- Fix (already applied): `expo-build-properties` with `android.usesCleartextTraffic: true` in
+  `app.json`. Prefer an HTTPS API in production and remove this then.
+- Even with cleartext, the LAN URL requires the phone to share the laptop's network **and** the API to
+  be running (`npm run api`) at that IP. The housekeeping note: a dynamic DHCP lease can change it.
+
 ## Expo Go on Android: every route "missing the required default export"
 
 In Expo Go on Android (SDK 53+) this cascade is **one** error repeated, not many:
@@ -77,8 +108,16 @@ ERROR  [TypeError: Cannot read property 'ErrorBoundary' of undefined]
 
 ## Theme / units
 
-- Theme not following OS: segmented control must be `system` and subscribe to Appearance.
-- 250 ml still showing in Imperial: convert only in UI from `amount_ml`.
+- Expected: a fresh install is **Light**, even on a phone in dark mode. LeafCare's cream/forest look
+  is the product's identity, and only an explicit choice may change it — pick **System** in
+  Settings → Preferences to follow the OS. The column default is `light`
+  (`0003_profile_theme_default.sql`), and the app defaults to the same value before `/api/me`
+  answers, so the first frame is already correct.
+- Theme not following OS: the segmented control must be on `system`, which subscribes to
+  Appearance. On `light` or `dark` the app intentionally ignores the phone's setting.
+- A **new** profile arrives as System: the migration has not been applied to that project. Run
+  `npm run doctor --workspace @leafcare/api` — the **Migration drift** row names the column and both
+  values, e.g. `profiles.theme is 'system' — expected 'light'`.
 
 ## Delete account
 

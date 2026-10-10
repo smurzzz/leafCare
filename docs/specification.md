@@ -502,7 +502,7 @@ Use threshold **top suggestion ≥ 80%** for this screen.
 
 - Back · **Settings** · **Account and preferences**
 - **ACCOUNT**: Email row; Change password + **Last changed 3 months ago**
-- **PREFERENCES**: Theme segmented **Light | System | Dark** (System selected); Units **Metric | Imperial**
+- **PREFERENCES**: Theme segmented **Light | System | Dark** (Light is the shipped default; the mock shows System selected); Units **Metric | Imperial**
 - **ABOUT**: Version **1.2.0(248)** (ship real version from app config), Terms, Privacy
 - **Danger zone** coral card: deleting account removes plants, streaks, etc.
 

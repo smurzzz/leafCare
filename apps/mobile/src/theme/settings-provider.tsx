@@ -1,10 +1,15 @@
 /**
  * Theme (Light / System / Dark) and units (Metric / Imperial) preferences.
  *
- * Theme defaults to `system` and subscribes to Appearance so a change in the OS
- * is reflected immediately (docs/troubleshooting.md).
+ * Theme defaults to **Light**, not to the phone's setting: the cream/forest look
+ * is the app's identity, and a device in dark mode must not silently change how
+ * LeafCare looks on first launch. `system` remains selectable and subscribes to
+ * Appearance, so a user who picks it sees an OS change immediately
+ * (docs/troubleshooting.md). A stored choice, and then the account's value from
+ * GET /api/me, both win over the default.
  */
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { ThemeValue, UnitSystemValue } from '@leafcare/shared';
 import {
   createContext,
@@ -22,6 +27,13 @@ import { darkColors, lightColors, type ThemeColors } from './colors';
 const THEME_KEY = 'leafcare.settings.theme';
 const UNITS_KEY = 'leafcare.settings.units';
 
+/**
+ * Light is the shipped default; System and Dark are one tap away in Settings.
+ * Keeping it in one constant means the default cannot drift between the state
+ * initialiser, the stored-value check and the tests.
+ */
+export const DEFAULT_THEME: ThemeValue = 'light';
+
 type SettingsContextValue = {
   theme: ThemeValue;
   resolvedTheme: 'light' | 'dark';
@@ -30,15 +42,23 @@ type SettingsContextValue = {
   ready: boolean;
   setTheme: (theme: ThemeValue) => Promise<void>;
   setUnits: (units: UnitSystemValue) => Promise<void>;
-  /** Applies values returned by GET /api/me without writing them back. */
+  /**
+   * Applies the values from GET /api/me. They are also cached on the device, so
+   * the next cold start renders the account's choice before the API answers.
+   */
   hydrate: (values: { theme?: ThemeValue; units?: UnitSystemValue }) => void;
 };
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
 
+/**
+ * Preferences are read and written best-effort through the same static import as
+ * `lib/storage.ts`. It used to be a dynamic `import()`, which bought nothing —
+ * the module is already in every bundle through the offline cache — and cost a
+ * microtask on every read and write.
+ */
 const loadStored = async (key: string): Promise<string | null> => {
   try {
-    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
     return await AsyncStorage.getItem(key);
   } catch {
     return null;
@@ -47,7 +67,6 @@ const loadStored = async (key: string): Promise<string | null> => {
 
 const persist = async (key: string, value: string): Promise<void> => {
   try {
-    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
     await AsyncStorage.setItem(key, value);
   } catch {
     /* best effort */
@@ -56,7 +75,7 @@ const persist = async (key: string, value: string): Promise<void> => {
 
 export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const systemScheme = useColorScheme();
-  const [theme, setThemeState] = useState<ThemeValue>('system');
+  const [theme, setThemeState] = useState<ThemeValue>(DEFAULT_THEME);
   const [units, setUnitsState] = useState<UnitSystemValue>('metric');
   const [ready, setReady] = useState(false);
 
@@ -86,7 +105,8 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const hydrate = useCallback((values: { theme?: ThemeValue; units?: UnitSystemValue }) => {
-    // The server is the source of truth once a profile exists.
+    // The server is the source of truth once a profile exists, and mirroring it
+    // into device storage is what makes an offline launch look right.
     if (values.theme) void setTheme(values.theme);
     if (values.units) void setUnits(values.units);
   }, [setTheme, setUnits]);

@@ -16,6 +16,11 @@
  * undefined`. The package is loaded through `loadNotifications()` below, so it is
  * evaluated only where it can actually work, and a development build (or the EAS
  * APK) gets real push support. Nothing here may run at module scope either.
+ *
+ * `loadNotifications` uses a function-scoped `require` rather than `await
+ * import()`: Metro evaluates both on first use, but `require` is synchronous, so
+ * the call sites stay simple — and it is the only form a test can substitute,
+ * because Jest cannot run a real dynamic `import()` of a workspace module.
  */
 
 import Constants, { ExecutionEnvironment } from 'expo-constants';
@@ -50,11 +55,14 @@ const warnOnce = (): void => {
  * used here (Expo Go on Android), which is expected rather than an error: the app
  * stays fully usable, it just cannot push.
  */
-const loadNotifications = async (): Promise<NotificationsModule | null> => {
+const loadNotifications = (): NotificationsModule | null => {
   try {
-    // Dynamic, so the package is evaluated on first use and never while a route module
-    // is being imported. A static import would throw here in Expo Go on Android.
-    return await import('expo-notifications');
+    // Loaded on first use and never while a route module is being imported: a
+    // static import would throw here in Expo Go on Android and take the router
+    // down with it. Metro's `require` is lazy, so this is the same guarantee and
+    // it stays a require on purpose.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require('expo-notifications') as NotificationsModule;
   } catch {
     warnOnce();
     return null;
@@ -87,7 +95,7 @@ const installHandler = (Notifications: NotificationsModule): void => {
 
 export const ensureAndroidChannel = async (): Promise<void> => {
   if (Platform.OS !== 'android') return;
-  const Notifications = await loadNotifications();
+  const Notifications = loadNotifications();
   if (!Notifications) return;
 
   try {
@@ -104,7 +112,7 @@ export const ensureAndroidChannel = async (): Promise<void> => {
 };
 
 export const requestNotificationPermission = async (): Promise<boolean> => {
-  const Notifications = await loadNotifications();
+  const Notifications = loadNotifications();
   if (!Notifications) return false;
 
   try {
@@ -126,7 +134,7 @@ export const registerForPushNotifications = async (): Promise<string | null> => 
   }
   if (!Device.isDevice) return null;
 
-  const Notifications = await loadNotifications();
+  const Notifications = loadNotifications();
   if (!Notifications) return null;
 
   installHandler(Notifications);
@@ -152,8 +160,23 @@ export const registerForPushNotifications = async (): Promise<string | null> => 
 };
 
 /**
- * Local fallback schedule for one plant. Titles avoid PII beyond the nickname the
- * user chose (docs/security.md).
+ * Drops the device reminder for one plant — on delete, and before rescheduling.
+ * The plant id is the notification identifier, so no bookkeeping is needed.
+ */
+export const cancelPlantReminder = async (plantId: string): Promise<void> => {
+  const Notifications = loadNotifications();
+  if (!Notifications) return;
+  await Notifications.cancelScheduledNotificationAsync(plantId).catch(() => undefined);
+};
+
+/**
+ * Local fallback schedule for one plant, kept in step with what the server
+ * returned: this is what makes a reminder fire when the API cannot reach the
+ * phone (a laptop on another network, or no FCM credentials configured). Titles
+ * avoid PII beyond the nickname the user chose (docs/security.md).
+ *
+ * Passing `nextDueAt: null` only clears the reminder, which is also what the
+ * server schedule having no next date means.
  */
 export const schedulePlantReminder = async (options: {
   plantId: string;
@@ -162,11 +185,11 @@ export const schedulePlantReminder = async (options: {
 }): Promise<void> => {
   const { plantId, nickname, nextDueAt } = options;
 
-  const Notifications = await loadNotifications();
+  const Notifications = loadNotifications();
   if (!Notifications) return;
 
   installHandler(Notifications);
-  await Notifications.cancelScheduledNotificationAsync(plantId).catch(() => undefined);
+  await cancelPlantReminder(plantId);
   if (!nextDueAt) return;
 
   const trigger = new Date(nextDueAt);
@@ -192,7 +215,7 @@ export const schedulePlantReminder = async (options: {
 };
 
 export const cancelAllReminders = async (): Promise<void> => {
-  const Notifications = await loadNotifications();
+  const Notifications = loadNotifications();
   if (!Notifications) return;
   await Notifications.cancelAllScheduledNotificationsAsync().catch(() => undefined);
 };

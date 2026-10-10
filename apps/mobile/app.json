@@ -7,7 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "leafcare",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "app.leafcare.mobile",
@@ -63,7 +62,15 @@
         }
       ],
       "expo-notifications",
-      "@clerk/expo"
+      "@clerk/expo",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
     ],
     "extra": {
       "router": {},

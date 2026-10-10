@@ -19,6 +19,15 @@ Expo talks to `EXPO_PUBLIC_API_BASE_URL`. For device testing, use a tunnel or LA
 
 ## Mobile (EAS)
 
+Before building, all four local gates must be green — a build is slow and the failures are cheaper
+here (`docs/testing.md`):
+
+```bash
+npm run typecheck && npm run lint && npm test && npm run check
+```
+
+Then:
+
 ```bash
 cd apps/mobile
 npx eas login
@@ -29,6 +38,32 @@ npx eas build --platform android --profile preview
 - Production AAB only if Play Store is in scope (it is **not** required by the proposal)
 
 iOS build needs Apple developer account; optional for the 8-week plan.
+
+## Build configuration lives in EAS, not in `.env`
+
+`eas build` uploads the project **minus everything in `.gitignore`**, and `apps/mobile/.env` is
+ignored — so a build never sees it and every `EXPO_PUBLIC_*` value would be undefined. The values are
+held in the EAS environment instead:
+
+```bash
+cd apps/mobile
+npx eas env:push --environment preview     --path .env --force
+npx eas env:push --environment development --path .env --force
+npx eas env:push --environment production  --path .env --force
+npx eas env:list  --environment preview    # names only, values stay out of the terminal
+```
+
+All seven are `EXPO_PUBLIC_*` — public by design, already inlined in every bundle you have shipped —
+so pushing them stores no secret. `EXPO_PUBLIC_API_BASE_URL` is the one to change per environment:
+the LAN IP for a laptop demo, an HTTPS host for anything real. If a build is missing them, the app now
+says so at startup rather than showing empty screens (`troubleshooting.md`).
+
+## Android release builds and cleartext HTTP
+
+Android blocks cleartext HTTP from `targetSdkVersion` 28 on, and Expo's template only allows it in the
+**debug** manifest — so a release APK cannot talk to `http://…:3000`. `expo-build-properties` in
+`app.json` sets `android.usesCleartextTraffic: true`, which lands in the main manifest and therefore
+applies to release builds. Prefer hosting the API over HTTPS and removing the flag.
 
 ## Development build (the only way to test push)
 

@@ -2,6 +2,79 @@
 
 ## Unreleased
 
+### Added — the app has a real test suite, and Light is the default theme
+
+Done before the first EAS build, so the APK is handed out with the checks actually running rather
+than promised.
+
+- **The mobile app is under Jest.** `jest-expo`, run once for iOS and once for Android: 12 suites,
+  **236 assertions**, covering the copy in the PNGs (`Mar 14 · 8:05 AM`, `Watered · 250 ml`), form
+  validation, per-user cache scoping, the offline queue, reminder scheduling, the release-config
+  guard and the theme default. `npm test` now runs the shared, API and mobile suites in one go.
+- **Light is the default theme**, end to end: the app, the `profiles.theme` column
+  (`0003_profile_theme_default.sql`) and the demo seed. System and Dark are still one tap away, and
+  an explicit choice — on the device or on the account — still wins. This is a deliberate change to
+  a locked decision in `AGENTS.md` and `docs/specification.md`, which said *System* was the default;
+  those files are updated here so the docs and the app agree.
+- **Local reminders are actually scheduled now.** `schedulePlantReminder` existed but nothing called
+  it, so a phone whose API was unreachable (or that had no FCM credentials) never reminded anyone.
+  It is wired to create, water, edit, reset and delete, so the device's schedule follows the
+  server's — and a deleted plant stops nagging.
+- **The status bar follows the app, not the phone.** It was `style="auto"`, which with Light as the
+  default would have drawn light icons on the cream background on a phone in dark mode.
+- **`npm run doctor` now catches a half-applied migration.** PostgREST's OpenAPI document is built
+  from the live schema and includes each column's `default`, so doctor checks the seven defaults the
+  migrations install — `profiles.theme` being the one that matters — and fails with the drift rather
+  than leaving you to guess. `0003_profile_theme_default.sql` is **applied** on the live project:
+  `profiles.theme` reads `light`, so a new profile row is Light server-side as well as on device.
+
+### Fixed — four faults the new tests found
+
+- **Preferences were silently never saved.** `settings-provider` read and wrote AsyncStorage through
+  a dynamic `import()`, and its `try/catch` swallowed the failure. The theme and unit choices of the
+  Settings screen therefore never reached the disk. It now uses the same static import as
+  `lib/storage.ts`, which is where it came from in the first place.
+- **A whitespace-only Clerk key counted as configured.** `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY="  "`
+  passed `isClerkConfigured()`, so the app would hand Clerk a blank key and die on a white screen
+  instead of showing the setup guide. Every public value is trimmed now, as `apiBaseUrl` and
+  `supportEmail` already were.
+- **The scan session accepted a suggestion index with no result.** `selectSuggestion` now requires a
+  result to exist, keeping the session's index meaningful at all times.
+- **`expo-notifications` is loaded with a lazy `require`** instead of `await import()`. Same
+  guarantee — evaluated on first use, never at bundle-evaluation time, which is what crashed Expo Go
+  on Android — but synchronous, and the only form a test can substitute.
+
+### Removed
+
+- `useHealth`, `queryKeys.health` and `api.health`: no screen ever called them. `/api/health` itself
+  stays, and is what `npm run doctor` and the smoke script probe.
+
+### Fixed — an installed APK would have shipped unconfigured and unable to reach the API
+
+Two faults meant "it builds" and "it runs on a phone" were not the same thing, and neither shows up
+while developing in Expo Go.
+
+- **The build never received its configuration.** `apps/mobile/.env` is gitignored, and `eas build`
+  uploads the project minus everything gitignored, so every `EXPO_PUBLIC_*` value would have been
+  undefined: no Clerk publishable key, no API URL, no Supabase URL. The bundle falls back to
+  `http://localhost:3000`, which on a phone is the phone itself, so the APK would have opened a
+  sign-in screen that cannot work. All seven public values are now EAS environment variables for the
+  `development`, `preview` and `production` environments (`eas env:push`), verified with `eas env:list`
+  — a build is self-contained and no secret is involved, since `EXPO_PUBLIC_*` values are inlined into
+  every bundle anyway.
+- **A release build could not use the API at all.** Android blocks cleartext HTTP from
+  `targetSdkVersion` 28 on, and Expo's template sets `usesCleartextTraffic` in the *debug* manifest
+  only. Verified empirically rather than assumed: `expo prebuild` produced **0** occurrences in the
+  main manifest without the option and `android:usesCleartextTraffic="true"` with it.
+  `expo-build-properties` now enables it, so the flag reaches release builds. Remove it once the API
+  is served over HTTPS.
+- **A misconfigured build said nothing.** `releaseConfigIssue()` runs at startup in a non-dev build and
+  names the exact missing or unusable value, and the setup screen has build-specific copy: whoever
+  installed the APK cannot edit a `.env` file, so telling them to is worse than useless.
+
+Recorded in `troubleshooting.md` with the prebuild command that proves the manifest claim, and in
+`deployment.md` for the per-environment values.
+
 ### Added — live data where the demo still showed placeholders
 
 Three gaps remained between "wired to the API" and "actually live", plus one caused by the identity

@@ -4,6 +4,15 @@
     "strict": true,
     "jsx": "react-jsx",
     "moduleResolution": "bundler",
+    /*
+     * Named explicitly because Expo's base config leaves `types` unset and this
+     * project did not pick the packages up automatically, which left `describe`,
+     * `it`, `expect` and `jest.fn` untyped in the Jest suites. Jest types are the
+     * test globals; Node types give `require`, used in the `jest.mock` factories
+     * and by the compose scripts. React Native's own globals (`__DEV__`, …) ship
+     * with the package's types and are unaffected.
+     */
+    "types": ["jest", "node"],
     "paths": {
       "@/*": [
         "./src/*"

@@ -5,6 +5,8 @@
  * a real read-only call to each service so "configured" means "reachable":
  *
  *   - Supabase REST: the tables from `supabase/migrations/0001_init.sql`
+ *   - Supabase schema: the column defaults every migration is supposed to have set,
+ *     read from PostgREST's OpenAPI document, so half-applied migrations show up here
  *   - Supabase Storage: the private `plant-photos` bucket
  *   - Clerk Backend API: the secret key, plus how many users exist
  *   - Plant.Net / Plant.id: whether a vendor key is present (auth is only
@@ -64,6 +66,58 @@ const attempt = async (fn: () => Promise<void>): Promise<string | null> => {
   }
 };
 
+/**
+ * Column defaults that only exist once a migration has actually run.
+ *
+ * PostgREST builds its OpenAPI document from the live schema, `default` included,
+ * so this answers "did 0003 run?" without a database password. That mistake is
+ * worth catching: the app ships Light, and a new profile row inserts with no
+ * `theme`, so an unapplied migration leaves the server handing back `system`.
+ */
+const EXPECTED_DEFAULTS: Array<[table: string, column: string, value: string]> = [
+  ['profiles', 'theme', 'light'],
+  ['profiles', 'units', 'metric'],
+  ['profiles', 'timezone', 'Asia/Manila'],
+  ['plants', 'reminder_time', '08:00'],
+  ['notification_prefs', 'quiet_start', '22:00'],
+  ['notification_prefs', 'quiet_end', '07:00'],
+  ['notification_prefs', 'snooze_preset', '3h'],
+];
+
+/** Postgres returns `22:00:00` for a `time` default, and the seconds are noise. */
+const normalizeDefault = (value: unknown): string =>
+  String(value).replace(/^(\d{2}:\d{2})(:00(\.0+)?)?$/, '$1');
+
+const checkColumnDefaults = async (url: string, headers: Record<string, string>): Promise<void> => {
+  try {
+    const response = await fetch(`${url}/rest/v1/`, {
+      headers: { ...headers, Accept: 'application/openapi+json' },
+    });
+    if (!response.ok) throw new Error(explain(response.status, await response.text()));
+
+    const document = (await response.json()) as {
+      definitions?: Record<string, { properties?: Record<string, { default?: unknown }> }>;
+    };
+
+    const drift = EXPECTED_DEFAULTS.flatMap(([table, column, expected]) => {
+      const actual = document.definitions?.[table]?.properties?.[column]?.default;
+      if (actual !== undefined && normalizeDefault(actual) === expected) return [];
+      const found = actual === undefined ? 'unset' : `'${String(actual)}'`;
+      return [`${table}.${column} is ${found} — expected '${expected}'`];
+    });
+
+    record(
+      'Migration drift',
+      drift.length === 0,
+      drift.length === 0
+        ? `${EXPECTED_DEFAULTS.length} column defaults match the migrations`
+        : drift.join(' | '),
+    );
+  } catch (error) {
+    record('Migration drift', false, error instanceof Error ? error.message : String(error));
+  }
+};
+
 const checkSupabase = async (): Promise<void> => {
   let url: string;
   let key: string;
@@ -105,14 +159,36 @@ const checkSupabase = async (): Promise<void> => {
     missing.length === 0 ? `all ${TABLES.length} present` : missing.join(' | '),
   );
 
-  const bucket = env.photoBucket;
-  const bucketError = await attempt(async () => {
-    const response = await fetch(`${url}/storage/v1/bucket/${bucket}`, { headers });
-    if (!response.ok) {
-      throw new Error(explain(response.status, await response.text()));
-    }
-  });
-  record('Supabase storage bucket', !bucketError, bucketError ?? `${bucket} present`);
+  // Both buckets matter, and their public flag is part of the contract: plant
+  // photos are private and read through signed URLs, while avatars are public so
+  // the app can render them without a signing round-trip. A bucket with the wrong
+  // visibility looks configured and then silently shows no image.
+  const buckets: Array<{ name: string; expectPublic: boolean }> = [
+    { name: env.photoBucket, expectPublic: false },
+    { name: 'avatars', expectPublic: true },
+  ];
+
+  for (const { name, expectPublic } of buckets) {
+    const bucketError = await attempt(async () => {
+      const response = await fetch(`${url}/storage/v1/bucket/${name}`, { headers });
+      if (!response.ok) {
+        throw new Error(explain(response.status, await response.text()));
+      }
+      const body = (await response.json()) as { public?: boolean };
+      if (Boolean(body.public) !== expectPublic) {
+        throw new Error(
+          `${name} is ${body.public ? 'public' : 'private'} — expected ${expectPublic ? 'public' : 'private'}`,
+        );
+      }
+    });
+    record(
+      'Supabase storage',
+      !bucketError,
+      bucketError ?? `${name} present (${expectPublic ? 'public' : 'private'})`,
+    );
+  }
+
+  await checkColumnDefaults(url, headers);
 };
 
 const checkClerk = async (): Promise<void> => {
@@ -140,10 +216,13 @@ const checkClerk = async (): Promise<void> => {
     const users = Array.isArray(body) ? body : [];
     const headerTotal = Number(response.headers.get('x-total-count'));
     const total = Number.isFinite(headerTotal) && headerTotal > 0 ? headerTotal : users.length;
+    // Test vs live matters for deployment: a `sk_test_` instance keeps working in
+    // a demo but every account is disposable and the data is not production.
+    const instance = key.startsWith('sk_live_') ? 'live' : 'test';
     record(
       'Clerk',
       true,
-      `${total} user(s)${total === 0 ? ' — no user to seed yet, sign up in the app first' : ''}`,
+      `${total} user(s) · ${instance} instance${total === 0 ? ' — no user to seed yet, sign up in the app first' : ''}`,
     );
   } catch (error) {
     record('Clerk', false, error instanceof Error ? error.message : String(error));

@@ -158,7 +158,8 @@ const main = async (): Promise<void> => {
         clerk_user_id: clerkUserId,
         ...(demoName ? { full_name: demoName, email: 'alex.morgan@leafcare.app' } : {}),
         timezone: timeZone,
-        theme: 'system',
+        // Matches the column default in 0003_profile_theme_default.sql.
+        theme: 'light',
         units: 'metric',
         current_streak_days: 7,
         last_care_date: localDateKey(shiftDays(now, 1), timeZone),

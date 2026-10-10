@@ -31,7 +31,7 @@ Do **not** build a Vite/web clone of the UI kit. The UI kit and PNGs are visual 
 | Plant ID | Server-side only (Plant.id preferred) |
 | Push | Expo Notifications; schedules stored in DB |
 | Units | Metric default; Imperial toggle in Settings |
-| Theme | System default; Light / System / Dark segmented control |
+| Theme | Light default; Light / System / Dark segmented control |
 | Out of scope | Disease/pest diagnosis, marketplace, IoT sensors |
 
 ## Screen inventory (must all exist)

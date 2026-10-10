@@ -31,7 +31,7 @@ Design and develop a mobile application that identifies plants from a camera pho
 - Auth: sign up, login, Google, password strength, forgot password, 6-digit email verify, resend cooldown
 - Splash + 3-slide onboarding with skip
 - Global states: loading skeleton, offline banner, generic error + try again, success toast
-- Light / System / Dark theme
+- Light / System / Dark theme (Light is the default; System follows the phone)
 - Metric / Imperial units (volume and temperature copy)
 
 ## Out of scope

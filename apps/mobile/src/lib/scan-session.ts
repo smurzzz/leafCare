@@ -35,8 +35,12 @@ export const setScanIdentificationId = (identificationId: string): void => {
   current = { ...current, identificationId };
 };
 
+/**
+ * Selection only means something once a result is in: without one, an index would
+ * sit in the session and the next result would have to reset it.
+ */
 export const selectSuggestion = (index: number): void => {
-  if (!current) return;
+  if (!current?.result) return;
   current = { ...current, selectedIndex: index };
 };
 
