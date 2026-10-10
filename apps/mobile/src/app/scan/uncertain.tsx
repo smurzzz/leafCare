@@ -100,7 +100,9 @@ export default function LowConfidenceRoute() {
           body="Natural light, leaf flat and centred, no other plants in frame."
         />
 
-        <Text style={[styles.sectionLabel, { color: colors.muted }]}>Possible matches</Text>
+        {matches.length > 0 ? (
+          <Text style={[styles.sectionLabel, { color: colors.muted }]}>Possible matches</Text>
+        ) : null}
 
         <View style={{ gap: spacing.md }}>
           {matches.map((match, index) => (

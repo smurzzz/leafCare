@@ -42,7 +42,12 @@ export const identifyResponseSchema = z.object({
   identificationId: z.string(),
   threshold: z.enum(['high', 'low']),
   photoUrl: z.string().nullable(),
-  top: identificationSuggestionSchema,
+  /**
+   * Null when the provider matched nothing (Pl@ntNet answers 404 "Species not
+   * found"). That is a low-confidence outcome, not a failure: the app routes it
+   * to the uncertain screen with an empty possible-matches list.
+   */
+  top: identificationSuggestionSchema.nullable(),
   alternatives: z.array(identificationSuggestionSchema),
 });
 

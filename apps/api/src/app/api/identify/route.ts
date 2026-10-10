@@ -73,11 +73,26 @@ export const POST = handle(async (request) => {
       .sort((a, b) => b.score - a.score);
 
     if (enriched.length === 0) {
+      // The provider answered, it simply had no match. That is the low-
+      // confidence path (docs/specification.md screen 12), not an error, so the
+      // call succeeds with no `top` and the app offers tips, retake and search.
       await supabase
         .from('identifications')
-        .update({ status: 'failed', raw_response: result.raw as never })
+        .update({
+          status: 'succeeded',
+          provider: result.provider,
+          raw_response: result.raw as never,
+          suggestions: [] as never,
+        })
         .eq('id', identificationId);
-      throw new HttpError(422, 'UPSTREAM_ERROR', 'No species matched this photo');
+
+      return json({
+        identificationId,
+        threshold: confidenceTier(0),
+        photoUrl: null,
+        top: null,
+        alternatives: [],
+      });
     }
 
     const [top, ...rest] = enriched;

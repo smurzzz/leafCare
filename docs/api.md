@@ -54,6 +54,11 @@ Response:
 
 `threshold` is `high` when `top.score >= 0.80`.
 
+When the provider matches nothing (Pl@ntNet answers `404 Species not found` for a photo of
+something that is not a plant) the call still succeeds and `top` is `null`, `alternatives` is
+empty and `threshold` is `low`. The app routes that to screen 12 rather than the error state,
+so a photo the vendor cannot name is a normal outcome, not a failure.
+
 `DELETE /api/identify/:id` — cancel / discard temp photo (Cancel on screen 10).
 
 `GET /api/species?q=` — manual search for screen 12.

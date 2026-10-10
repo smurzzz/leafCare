@@ -12,8 +12,8 @@ Use this as the implementation backlog. Check items in PRs / changelog when done
 - [x] Create Supabase project — URL and secret key authenticate against REST + Storage
 - [x] Obtain Plant.id (or PlantNet) API key — PlantNet key present and accepted; no-match
       answers now fall through to the uncertain flow instead of a 502
-- [ ] **Apply `apps/api/supabase/migrations/0001_init.sql`** — none of the eight tables and
-      the `plant-photos` bucket exist yet, so every data screen is blocked on this
+- [x] Apply `apps/api/supabase/migrations/0001_init.sql` — eight tables + the
+      `plant-photos` bucket confirmed by `npm run doctor`
 - [ ] **Sign up one user in the app** — the seed needs a `clerk_user_id` and the Clerk
       instance currently has zero users
 - [ ] Put real values in `apps/mobile/.env` — `EXPO_PUBLIC_PROJECT_ID` is still `xxxxxxxx`,
@@ -113,6 +113,8 @@ Use this as the implementation backlog. Check items in PRs / changelog when done
 - [ ] Auth happy path + Google — **needs live Clerk keys**
 - [ ] Identify high vs low confidence on device — **needs a device and a real leaf photo**
       (the vendor path is verified only as far as auth + no-match; see testing.md)
+- [ ] No-match → uncertain screen (12) — code path there, but only reachable with a
+      signed-in user, so it still needs the sign-up above
 - [ ] Save plant appears on Home and My Plants — **needs Supabase**
 - [ ] Mark watered from three surfaces + toast — **needs Supabase**
 - [ ] Reminder empty vs filled — **needs Supabase**

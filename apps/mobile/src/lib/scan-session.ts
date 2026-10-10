@@ -46,13 +46,19 @@ export const clearScanSession = (): void => {
   current = null;
 };
 
-export const selectedSuggestion = (): IdentificationSuggestion | null => {
-  if (!current?.result) return null;
-  const all = [current.result.top, ...current.result.alternatives];
-  return all[current.selectedIndex] ?? current.result.top;
-};
-
+/**
+ * Ranked suggestions for the current scan. Empty when the provider matched
+ * nothing, which routes the user to the uncertain screen (12) rather than an
+ * error: `top` is null in that case.
+ */
 export const allSuggestions = (): IdentificationSuggestion[] => {
   if (!current?.result) return [];
-  return [current.result.top, ...current.result.alternatives];
+  const { top, alternatives } = current.result;
+  return top ? [top, ...alternatives] : [...alternatives];
+};
+
+export const selectedSuggestion = (): IdentificationSuggestion | null => {
+  if (!current?.result) return null;
+  const all = allSuggestions();
+  return all[current.selectedIndex] ?? all[0] ?? null;
 };

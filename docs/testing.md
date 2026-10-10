@@ -45,7 +45,8 @@ npm run doctor --workspace @leafcare/api    # probes each integration for real
 | Supabase Storage | `GET /storage/v1/bucket` → 200 (bucket list empty) |
 | PlantNet | key accepted, `POST …/v2/identify/all` → 404 `Species not found` for mockup images, mapped to **zero suggestions**, not a 502 |
 | Protected routes | 401 `UNAUTHORIZED` with no token, a garbage token **and** a well-formed expired token |
-| Cron job | 403 with a wrong `x-cron-secret`; 500 only because the tables are missing |
+| Migration | all eight tables and the `plant-photos` bucket present |
+| Cron job | `POST /api/jobs/reminders` → `{"ok":true,"sent":0,"users":0}` against the live database; 403 with a wrong `x-cron-secret` |
 | CORS | preflight + GET carry `Access-Control-Allow-Origin` for `APP_ORIGIN`; a foreign origin gets none |
 
 **Not covered:** the vendor's success path needs a real leaf photo — every image in

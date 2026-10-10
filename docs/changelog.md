@@ -84,6 +84,14 @@ services on:
 - **The identify test depended on ambient env.** It asserted the mock provider without
   pinning `IDENTIFY_PROVIDER`, so exporting a vendor key broke it.
 
+- **A photo the vendor cannot name was a dead end.** The identify response now allows
+  `top: null`, so a no-match lands on the uncertain screen (12) with tips, Retake and Search
+  manually instead of the error screen (25).
+
+Verified once the schema was applied: all eight tables and the `plant-photos` bucket exist,
+and `POST /api/jobs/reminders` returns `{"ok":true,"sent":0,"users":0}` against the live
+database (0 users have a push token yet) while a wrong `x-cron-secret` still gets a 403.
+
 Added:
 
 - `npm run doctor --workspace @leafcare/api` — probes Supabase REST, the photo bucket,
