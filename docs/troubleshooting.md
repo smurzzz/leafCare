@@ -1,5 +1,21 @@
 # Troubleshooting
 
+## Metro serves the wrong project
+
+- Symptom is a bundle that loads but has no icons or splash: `Error: ENOENT ... no such file or
+  directory, scandir '<repo root>\assets\images'`, or `Asset not found` for an asset that is
+  right there in `apps/mobile/assets/images/`.
+- Cause: `expo start` was run from the **monorepo root**, so Expo treated the root `package.json`
+  as the app (`main: expo/AppEntry`, version `0.1.0`). The root has no `app.json`, so nothing
+  complains — it just serves assets relative to the wrong directory. The manifest confirms it:
+  `curl -H 'expo-platform: android' http://localhost:8081/` reports
+  `extra.expoClient._internal.projectRoot`, which must end in `apps/mobile`.
+- Fix: run it in `apps/mobile` (`npm run mobile` from the root already does). Side effects of a
+  misrooted run — a root `tsconfig.json` extending `expo/tsconfig.base` and a root `.expo/` — are
+  safe to delete.
+- Expo itself rewrites `tsconfig.json#include` on start, which shows up as a local diff; that is
+  expected, not corruption.
+
 ## Expo cannot reach API
 
 - Physical device: `localhost` is the phone. Use LAN IP (`http://192.168.x.x:3000`) or a tunnel.

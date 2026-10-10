@@ -116,6 +116,27 @@ Added:
 - `npm run check:secrets` — fails if a credential is ever written into a tracked file,
   which is how a live `CRON_SECRET` nearly reached `.env.example`.
 
+## Unreleased — EAS project link and native permission trim
+
+`eas init` created **@henry26/leafcare** and wrote the real `extra.eas.projectId`, replacing the
+all-zeros placeholder that made `eas build` refuse the project. The same id now sits in
+`apps/mobile/.env` as `EXPO_PUBLIC_PROJECT_ID`, which is the value `getExpoPushTokenAsync` reads,
+so push registration can resolve the project instead of failing on device.
+
+Opening the config to do that exposed two native permissions the app was requesting for free:
+
+- **A plant app was asking for the microphone.** `expo-camera` and `expo-image-picker` add
+  `RECORD_AUDIO` by default because they can capture video with sound; LeafCare only photographs
+  leaves. `microphonePermission: false` deletes `NSMicrophoneUsageDescription` on iOS and blocks
+  the Android permission with `tools:node="remove"`, so no other package can silently re-add it.
+- **`expo-camera` bundled ML Kit barcode scanning**, a native dependency nothing in the app used.
+  `barcodeScannerEnabled: false` sets `expo.camera.barcode-scanner-enabled=false` in both the
+  Gradle and Podfile properties so the native build can leave it out.
+
+Also recorded the dev-server trap behind the confusing `ENOENT .../assets/images` failure: Expo
+started from the monorepo root treats the root `package.json` as the app, serves the wrong
+`projectRoot` and breaks every bundled image. See `troubleshooting.md`.
+
 ## 1.0.0 — planned
 
 First student demo APK: identification, collection, watering, reminders, Clerk auth, matching the screenshot flows.

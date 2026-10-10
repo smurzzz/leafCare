@@ -15,8 +15,8 @@ Use this as the implementation backlog. Check items in PRs / changelog when done
 - [x] Apply `apps/api/supabase/migrations/0001_init.sql` — eight tables + the
       `plant-photos` bucket confirmed by `npm run doctor`
 - [x] Sign up a user — one Clerk user exists and the demo data is seeded for it
-- [ ] Put real values in `apps/mobile/.env` — `EXPO_PUBLIC_PROJECT_ID` is still `xxxxxxxx`,
-      so push registration fails on device. `eas init` fills this in
+- [x] Put real values in `apps/mobile/.env` — `EXPO_PUBLIC_PROJECT_ID` now carries the id
+      `eas init` assigned to the project, so push registration can resolve it
 - [ ] Point `EXPO_PUBLIC_API_BASE_URL` at your machine's LAN IP (or a tunnel) before
       running on a **physical** device — `http://localhost:3000` only resolves on a simulator
 - [x] `GET /api/health` works
@@ -131,6 +131,8 @@ Use this as the implementation backlog. Check items in PRs / changelog when done
 
 ## Phase 5 — Deployment
 
+- [x] EAS project linked — `eas init` created `@henry26/leafcare` and replaced the
+      all-zeros `extra.eas.projectId` placeholder that made `eas build` refuse
 - [ ] EAS build Android APK — run `npx eas build --platform android --profile preview` in `apps/mobile`
 - [ ] Production Clerk/Supabase/Plant.id env
 - [x] Version string on Settings matches build (read from Expo config + build number)

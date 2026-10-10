@@ -25,9 +25,9 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "permissions": [
-        "CAMERA",
-        "POST_NOTIFICATIONS",
-        "VIBRATE"
+        "android.permission.CAMERA",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.VIBRATE"
       ],
       "predictiveBackGestureEnabled": false
     },
@@ -49,22 +49,28 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "LeafCare uses your camera to identify plants. Photos stay on your device unless you choose to save them."
+          "cameraPermission": "LeafCare uses your camera to identify plants. Photos stay on your device unless you choose to save them.",
+          "recordAudioAndroid": false,
+          "microphonePermission": false,
+          "barcodeScannerEnabled": false
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Choose a photo of a leaf so LeafCare can identify the species."
+          "photosPermission": "Choose a photo of a leaf so LeafCare can identify the species.",
+          "microphonePermission": false
         }
       ],
       "expo-notifications",
       "@clerk/expo"
     ],
     "extra": {
+      "router": {},
       "eas": {
-        "projectId": "00000000-0000-0000-0000-000000000000"
+        "projectId": "031714ca-a18f-4b9d-813c-5af7e7122dce"
       }
-    }
+    },
+    "owner": "henry26"
   }
 }
