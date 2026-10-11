@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+### Added — the app finally has its own icon
+
+Every icon surface was still the Expo template's blue chevron — `icon.png`, `favicon.png`,
+`splash-icon.png` and all three adaptive layers were untouched scaffolding, which is why the app
+installed as a blue "A". They are now the LeafCare mark: two leaves and a cream water-drop.
+
+`apps/mobile/assets/brand/leafcare-mark.png` is the master, and `scripts/make-icons.mjs` derives
+every shipped size from it, so changing the mark is one file plus one command instead of five
+hand-edited binaries. The padding is computed rather than guessed, and each number comes from how
+that surface gets masked: the iOS icon fits the mark to 72% of the canvas, the adaptive foreground
+holds its furthest opaque pixel at 32% of the canvas from the centre (Android only promises to
+show the middle 61% circle), the monochrome layer reuses that geometry as a flat silhouette for
+Android 13 themed icons, the splash keeps the margin Android 12's circular mask needs, and the
+favicon is pushed out to 84% because 48px forgives nothing. The two opaque icons are written
+without an alpha channel, since Apple rejects app icons that carry one.
+
+The mark's own colours chose the background. On the cream it was drawn against its drop vanishes
+(cream on cream, about 1.07:1) and on white much the same; on the brand's forest deep `#163D2E`
+all three elements read, because the drop finally has something to sit against and the dark leaf
+is separated by the pale vein running through it. So the icon stays on the launch colour, and
+`app.json` needed no palette change.
+
+The template's `android.adaptiveIcon.backgroundImage` is gone rather than replaced: it was the
+blue guide-lined plate, and `backgroundColor: #163D2E` was already set beside it, so regenerating
+it as a flat PNG of the same colour would only have duplicated a setting.
+
 ### Added — point the camera at a plant and it captures itself
 
 Screen 09 no longer needs the shutter tapped. An **Auto** pill (on by default) watches the frame

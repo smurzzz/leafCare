@@ -107,7 +107,12 @@ Use this as the implementation backlog. Check items in PRs / changelog when done
       edit, reset and delete, so reminders fire even when the API cannot be reached
 - [x] Metric/Imperial conversion on volumes
 - [x] Achievement unlock first plant / 7-day / 10 plants / 30-day
-- [ ] App icon + native splash (placeholder Expo assets still in place)
+- [x] App icon + native splash — the Expo template's blue chevron is gone from all five surfaces
+      (`icon.png`, both adaptive layers, `splash-icon.png`, `favicon.png`). `scripts/make-icons.mjs`
+      derives every size from `apps/mobile/assets/brand/leafcare-mark.png`, and the mark sits on
+      forest deep so its cream drop stays visible
+- [ ] Icon and splash seen on a device — **needs a device**: the generated files are verified by
+      measurement (dimensions, alpha, adaptive safe zone), not yet by a launcher mask
 
 ## Phase 4 — Testing
 
