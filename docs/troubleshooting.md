@@ -34,6 +34,23 @@
 - 401/403 from Plant.id: key on **server** env, not Expo.
 - Slow identifying: still show screen 10; timeout ~20s then screen 25.
 
+## Every upload says "We couldn't reach LeafCare" while the API is healthy
+
+- Symptom: screen 10 fails with the network copy, the plant photo on 13 and the avatar on 21 do the
+  same, `GET` endpoints work fine, and the API log shows **no request at all** — not even a 401.
+- Cause: the global `fetch` in this app is Expo's, not React Native's. `expo/src/winter/runtime.native.ts`
+  installs it from SDK 56 on unless `EXPO_PUBLIC_USE_RN_FETCH` is set, and Expo's implementation
+  builds the multipart body itself (`expo/src/winter/fetch/convertFormData.ts`), accepting only a
+  string, an `instanceof Blob`, or an object with a `bytes()` method. React Native's
+  `{ uri, name, type }` part is none of those, so `fetch` throws
+  `Unsupported FormDataPart implementation` **before opening a connection** — and because the throw
+  comes from inside `fetch`, the client reports it as a dead network.
+- Fix: append a real handle — `new File(uri)` from `expo-file-system`, which implements `Blob` and
+  also supplies the filename and content type. See `uploadPart` in `apps/mobile/src/lib/api.ts`.
+- Do **not** "fix" it with `EXPO_PUBLIC_USE_RN_FETCH=1`: React Native's fetch does understand the old
+  shape, but that env var changes the networking implementation for every request. The file part
+  works with either.
+
 ## Supabase
 
 - Empty plant list after save: `clerk_user_id` mismatch between webhook and API JWT `sub`.

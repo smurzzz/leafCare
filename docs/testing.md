@@ -65,8 +65,10 @@ npm run test:coverage --workspace @leafcare/mobile    # src/lib + src/theme
 | `toast-bus.test.ts` | every subscriber hears a toast, and unsubscribing really stops delivery |
 | `frame-analysis.test.ts` | the auto-capture framing heuristic: a textured leaf fills the frame and passes, a flat green surface does not (which is why the bar is 0.75), the same band of leaf only counts when it is **centred**, a blue or grey frame never counts, a yellowing leaf still does, plus base64/PNG decode round trips and a decode that returns `null` instead of throwing |
 | `auto-capture.test.ts` | the firing rules: one good frame is not enough, motion resets the run and reports `holding`, a fire is latched so one plant can never fire twice, and `reset()` re-arms for the next plant |
-| `frame-probe.test.ts` | the probe measures a 64×64 PNG made from a fast (`skipProcessing`) capture and **deletes both files it created** — including when the resizer throws and when deleting itself fails |
-| `use-auto-capture.test.tsx` | the loop: no probe when disabled, in the background or with no camera; three steady frames then exactly one capture and no further probes; a camera that throws does not stop it; it gives up instead of holding the lens open |
+| `frame-probe.test.ts` | the probe measures a 64×64 PNG made from a fast (`skipProcessing`) capture and **deletes both files it created** — including when the resizer throws and when deleting itself fails; and the framing bug below, reproduced both ways |
+| `api.test.ts` | the HTTP client's own layer, which had none: the photo part is the shape Expo's `fetch` can serialise (the stub **enforces** that rule, so a regression to React Native's `{ uri, name, type }` fails here with `Unsupported FormDataPart implementation`), the Clerk token and request id go out, a server error keeps its code and message, and a cancelled request is rethrown rather than relabelled as a dead connection |
+| `api-upload-unavailable.test.ts` | a build with no `expo-file-system` refuses to upload (`UPLOAD_UNAVAILABLE`, nothing attempted, no fake outage) while endpoints that carry no photo keep working |
+| `use-auto-capture.test.tsx` | the loop: no probe when disabled, in the background or with no camera; three steady frames then exactly one capture and no further probes; a camera that throws does not stop it; it gives up instead of holding the lens open; it reports `blind` when no probe measures anything, and stops once one does |
 
 Two known properties of this setup, both verified and neither a failing check:
 
@@ -100,11 +102,18 @@ plant matter comes close.
 | Cat on a branch | 0.12 | 0.61 | 0.17 | no |
 | Dog on sand / laptop / city skyline (picsum) | 0.00 | 0.00 | 0.00 | no |
 
-Two limits worth stating plainly, because they are not covered by that table:
+Three limits worth stating plainly, because they are not covered by that table:
 
 - The table is **stills**, downscaled with a box filter. The device's own resize, a live sensor
   and a moving hand are not in it, so the numbers justify the thresholds but do not prove the
   on-device experience. `motionTolerance` in particular is the first value to tune on a phone.
+- The table was measured on photographs the leaf **filled**, which is where the first report from a
+  phone went wrong: the probe was measuring 62% of the whole capture, and the preview only ever
+  shows a centre crop of it, so the box covered ~1.8× more width than the user could see. A plant
+  framed in the guide scored **0.05** and could never fire. The probe now crops to
+  `previewSquare()` — the largest centred square the preview can show — before resizing; the same
+  synthetic 240×180 frame with a leaf filling the guide measures **0.05** whole-frame and **1.00**
+  cropped, so `frame-probe.test.ts` fails if that crop is ever dropped again.
 - Every auto-capture probe is a real capture: `expo-camera` exposes no preview frames. The probe
   deletes its files immediately, and quality 0.2 with `skipProcessing` keeps it fast, but it is
   real camera work and real battery, which is why the loop stops after 60 s.
@@ -238,6 +247,38 @@ Critical paths:
 - Airplane mode on Home → banner 26
 - Identify while offline → error 25
 - Water while offline: queue or disable + banner (document which was implemented)
+
+## Verified on a phone — the scan flow (11 October 2026)
+
+Recorded because it is the first time the scan has run end to end on hardware, and because
+how it failed before is more useful than the fact that it passes now.
+
+A scan from screen 09 now reaches the API and the vendor answers:
+
+```
+POST /api/identify 200 in 4.0s (next.js: 1.8ms, application-code: 4.0s)
+POST /api/identify 200 in 3.9s (next.js: 1.4ms, application-code: 3.9s)
+POST /api/identify 200 in 4.3s (next.js: 1.2ms, application-code: 4.3s)
+```
+
+The evidence is the API's own request log, taken from `next dev` on the machine the phone is
+pointed at. Note what it does **not** say: which tier the provider returned, and therefore whether
+the scan landed on result (11) or uncertain (12). The no-match path is covered by the API suite; the
+routing itself is a function of the provider's score.
+
+Both earlier failures were invisible from the client and produced the *same* copy, which is why
+they took three rounds to separate:
+
+- Before the framing fix there was no request at all, because auto-capture never fired: the probe
+  measured a band ~1.8× wider than the preview could show.
+- Before the upload fix there was still no request, this time because Expo's `fetch` threw
+  `Unsupported FormDataPart implementation` on React Native's `{ uri, name, type }` part before
+  opening a connection — and the client reported that as a dead network. The API log showing no
+  `POST` line was the tell that separated "never sent" from "sent and failed".
+
+Still unmeasured on hardware: the probe cadence and `motionTolerance` (see the calibration limits
+above), what `expo-file-system` derives as filename and content type for a HEIC or PNG pick, and
+iOS — everything here is Android, in Expo Go.
 
 ## Devices
 

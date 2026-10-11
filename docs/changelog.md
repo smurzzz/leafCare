@@ -58,6 +58,99 @@ factory that throws at load time.
 so the already-started preview APK `a3092468` does not contain them. And the calibration is stills
 — the probe cadence and `motionTolerance` are the values to expect tuning on a real phone.
 
+### Fixed — every photo upload failed as "We couldn't reach LeafCare"
+
+Reported from the phone on screen 10, with the API healthy and answering its other endpoints. The
+copy is the client's network error, and the request had never left the device — the API log held no
+`POST /api/identify` at all, not even a 401.
+
+Since SDK 56 the global `fetch` in an Expo app is **Expo's**, not React Native's:
+`expo/src/winter/runtime.native.ts` installs it unless `EXPO_PUBLIC_USE_RN_FETCH` is set, and this
+app does not set it. Expo's implementation serialises the multipart body itself
+(`expo/src/winter/fetch/convertFormData.ts`) and understands exactly three part shapes — a string,
+an `instanceof Blob`, or an object with a `bytes()` method. The client built its photo part as React
+Native's `{ uri, name, type }`, which is none of those, so `fetch` threw
+`Unsupported FormDataPart implementation` **before opening a connection**, and because that throw
+came from inside `fetch`, the catch below reported it as a dead connection.
+
+It affected **every** upload, not just identify: the scan, the plant photo on screen 13 and the
+avatar on screen 21. All three looked like an outage, while `GET` requests were unaffected — which
+is why nothing else appeared broken, and why the review exercise found it rather than the suite: the
+HTTP client had no coverage of its own, its confidence resting on the shared contracts.
+
+The photo part is now a real file handle — `expo-file-system`'s `File`, which implements `Blob` and
+reads the bytes natively — so the filename and content type come from the file itself instead of
+being guessed, and `UploadableImage` is simply `{ uri }`. Checked against the shipped converter
+rather than by reading it: the old part throws `Unsupported FormDataPart implementation`, and the
+new one produces a 193-byte body carrying `name="image"`, `filename="leaf.jpg"`,
+`content-type: image/jpeg` and the payload.
+
+Two things fell out of the same review:
+
+- **A timeout was reported as an outage too.** Expo's `fetch` cancels with its own `FetchError`
+  ("Fetch request has been canceled"), not an `AbortError`, so the client's `error.name ===
+  'AbortError'` test never matched and screen 10's 20-second timeout was relabelled as the network
+  being down. The client now tests the signal it holds, so the timeout gets its own
+  "This took too long" copy.
+- **A body is now built inside `request()`**, as a factory instead of an argument. Built as an
+  argument, a body that could not be built threw synchronously out of a function whose contract is a
+  promise; it now rejects like every other failure, with `UPLOAD_UNAVAILABLE` and a plain
+  explanation rather than a fake outage (the case for an old build with no `expo-file-system`).
+
+`api.test.ts` and `api-upload-unavailable.test.ts` cover the client's own layer for the first time.
+The upload stub **enforces** Expo's rule, so a regression to the `{ uri }` part fails the suite with
+the message a phone would have shown; the rest pin the Clerk token and request-id headers, a server
+error keeping its code and message, a cancelled request not being relabelled, and a build without
+`expo-file-system` refusing to upload instead of blaming the network.
+
+### Fixed — auto-capture could never fire, because the probe measured more than the preview shows
+
+Reported from a phone: centring a plant and holding still did nothing, and the caption never moved
+off "Center the plant in the frame". The trigger was fine. The measurement was aimed at the wrong
+part of the photo.
+
+On Android the preview is not the capture. `CameraView` fills its container, and the native side
+implements that as a **centre crop** — `PreviewView.ScaleType.FILL_CENTER`, the default when no
+`ratio` prop is passed, and screen 09 passes none — while `takePictureAsync` with `skipProcessing`
+writes the **raw sensor frame**: whole, unrotated, uncropped. On an iPhone-14-shaped screen
+(393×852) against a 4:3 sensor the gap is wide: the visible column is only ~46% of the frame's
+width, so the old box — 62% of the *frame* — spanned about **1.8× more width than the user could
+see**.
+
+iOS is the milder case, and worth recording because it explains why the bug never showed up in a
+simulator: `CameraPhotoCapture` crops the photo to the preview's aspect ratio itself (`AVMakeRect`,
+with a `.resizeAspectFill` preview), so there the capture already matches what the user saw. The
+same arithmetic runs on both platforms; on iOS it only tightens the window towards the centre.
+
+A plant framed in the on-screen guide, which is the shot the caption asks for, covers ~33% of the
+frame in each direction. Inside that box it is a fifth of the area, and the score lands at 0.05 on
+a synthetic frame against a bar of 0.75. It could not fire, at any distance, in any light. Worth
+recording plainly: the calibration below was measured on real photographs, but photographs the
+leaf *filled* — right about the thresholds, silent about the framing.
+
+`previewSquare()` in `lib/frame-probe.ts` now cuts the capture down to the largest centred square
+the preview can show — `min(width, height) × min(aspect, 1/aspect)` — and the probe crops to it
+before resizing, so the 62% box lands inside the guide rather than around it. It reads no EXIF
+orientation tag on purpose: a rotation swaps the frame's sides but leaves `min(width, height)` and a
+centred square alone, so one number is correct on both platforms. `skipProcessing` already reports
+the frame's stored dimensions from EXIF, so the crop costs no extra decode, and a camera that
+reports no size falls back to measuring the whole frame rather than cropping blind. Screen 09 hands
+over its own aspect from `useWindowDimensions` and the loop forwards it, so the geometry follows a
+rotated phone or a different window size.
+
+The same review found the other half of the problem: a probe that measured **nothing at all** — no
+native modules in the build, or a camera refusing every capture — looked on screen exactly like "no
+plant in the frame yet". After four empty probes the loop reports `blind` and the caption says so
+("Auto can't see the frame here — tap the shutter") instead of asking for a plant it cannot see.
+
+`frame-probe.test.ts` pins both directions on a synthetic 240×180 frame with a leaf filling the
+guide: measured over the whole capture, coverage 0.21 and score **0.05** (no fire); measured over
+the cropped square, coverage 1.00 and score **1.00** (fires). Synthetic, not a phone reading — the
+on-device numbers still need a device — but it is the same windowing decision the device makes.
+
+JS only: Expo Go and any development build pick this up on reload. A standalone APK with no dev
+client still needs a rebuild.
+
 ### Verified — pointing the camera at a plant really identifies it (1.8–2.8 s)
 
 Until now the identify path had only ever been proved against the deterministic `mock` provider:

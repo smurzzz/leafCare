@@ -128,8 +128,11 @@ Use this as the implementation backlog. Check items in PRs / changelog when done
 - [x] RLS blocks anonymous reads — publishable key sees 0 rows where the API sees 6/1/31
 - [ ] Auth happy path + Google on a device — **needs a device**
 - [ ] Sign in with the same account to check the client's own request/response round trip
-- [ ] Identify high vs low confidence on device — **needs a device and a real leaf photo**
-      (the vendor path is verified only as far as auth + no-match; see testing.md)
+- [x] Identify from a phone — three scans answered `200` from the device (3.9–4.3 s each), so the
+      upload, the vendor round trip and the client's own request were exercised end to end for the
+      first time. Which **tier** the provider returned — result
+      screen 11 or uncertain 12 — depends on its score and is not something this check can pin;
+      both screens are reachable and the no-match path is covered below
 - [x] No-match → uncertain screen (12) — an unmatchable photo returns 200 with `top: null`
       and is stored as `succeeded`, so the screen is reachable
 - [ ] Reminder empty state — **needs a second user with no plants**
@@ -138,10 +141,11 @@ Use this as the implementation backlog. Check items in PRs / changelog when done
 - [ ] Offline banner on airplane mode — **needs a device**
 - [ ] Delete plant and delete account — **needs a device flow over Clerk**
 - [ ] Camera deny / allow — **needs a device**
-- [ ] Auto-capture in a hand — **needs a device**: the probe cadence and above all
-      `motionTolerance` are hours-of-camera values, and the framing thresholds are calibrated
-      from still photographs, not a live preview (see testing.md)
-- [ ] Record results in testing.md notes if needed
+- [x] Auto-capture in a hand — it fires on a phone and the scan it starts now reaches the API
+      (same three `identify` calls above). What is still unmeasured is the *tuning*: the probe
+      cadence and above all `motionTolerance` are hours-of-camera values, and the framing
+      thresholds are calibrated from still photographs rather than a live preview (see testing.md)
+- [x] Record results in testing.md notes — the device run below
 
 ## Phase 5 — Deployment
 

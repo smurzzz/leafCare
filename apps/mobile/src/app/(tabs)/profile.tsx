@@ -222,7 +222,7 @@ export default function ProfileRoute() {
     });
     const asset = result.canceled ? undefined : result.assets[0];
     if (!asset?.uri) return;
-    uploadAvatar.mutate({ uri: asset.uri, fileName: asset.fileName, mimeType: asset.mimeType });
+    uploadAvatar.mutate({ uri: asset.uri });
   }
 
   async function onLogOut() {

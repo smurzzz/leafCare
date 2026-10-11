@@ -155,4 +155,52 @@ describe('useAutoCapture', () => {
     await new Promise((resolve) => setTimeout(resolve, 40));
     expect(probe).not.toHaveBeenCalled();
   });
+
+  it('hands the preview aspect to the probe, which needs it to measure what the user sees', async () => {
+    answers([sample(0.9)]);
+    await renderHook(() =>
+      useAutoCapture({
+        cameraRef,
+        enabled: true,
+        onCapture: jest.fn(),
+        options: FAST,
+        viewAspect: 393 / 852,
+      }),
+    );
+
+    await waitFor(() => expect(probe).toHaveBeenCalled());
+    expect(probe).toHaveBeenCalledWith(camera, { viewAspect: 393 / 852 });
+  });
+
+  it('says it cannot see the frame when no probe measures anything, and keeps looking', async () => {
+    // A build without the native modules, or a camera refusing every capture, used to
+    // be indistinguishable from "no plant yet": the same caption, indefinitely.
+    probe.mockResolvedValue(null);
+    const onCapture = jest.fn();
+    const { result } = await renderHook(() =>
+      useAutoCapture({ cameraRef, enabled: true, onCapture, options: FAST }),
+    );
+
+    await waitFor(() => expect(result.current.status).toBe('blind'));
+    expect(onCapture).not.toHaveBeenCalled();
+
+    // It keeps probing rather than giving up: a camera that comes back is picked up
+    // without the user having to leave the screen.
+    const seen = probe.mock.calls.length;
+    await waitFor(() => expect(probe.mock.calls.length).toBeGreaterThan(seen));
+  });
+
+  it('stops reporting blind as soon as a frame arrives', async () => {
+    // Flipped by the test rather than by a probe count: `blind` is a state the user
+    // stays in until measuring works again, and a counter would race the assertion.
+    let measuring = false;
+    probe.mockImplementation(async () => (measuring ? sample(0.9) : null));
+    const { result } = await renderHook(() =>
+      useAutoCapture({ cameraRef, enabled: true, onCapture: jest.fn(), options: FAST }),
+    );
+
+    await waitFor(() => expect(result.current.status).toBe('blind'));
+    measuring = true;
+    await waitFor(() => expect(result.current.status).not.toBe('blind'));
+  });
 });

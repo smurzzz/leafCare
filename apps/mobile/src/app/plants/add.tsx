@@ -90,7 +90,7 @@ export default function AddPlantRoute() {
         difficulty: suggestion?.difficulty ?? null,
         identificationId: session?.identificationId ?? undefined,
       },
-      image: photoUri ? { uri: photoUri, mimeType: 'image/jpeg', fileName: 'leaf.jpg' } : null,
+      image: photoUri ? { uri: photoUri } : null,
     });
 
     clearScanSession();

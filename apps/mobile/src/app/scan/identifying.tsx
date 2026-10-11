@@ -77,7 +77,7 @@ export default function IdentifyingRoute() {
     const run = async () => {
       try {
         const result = await api.identify(
-          { uri: session.photoUri, mimeType: 'image/jpeg', fileName: 'leaf.jpg' },
+          { uri: session.photoUri },
           { signal: controller.signal, requestId: requestIdRef.current },
         );
         if (cancelledRef.current) return;

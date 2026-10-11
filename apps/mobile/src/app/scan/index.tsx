@@ -10,6 +10,11 @@
  * the screen back to exactly what the PNG shows, where the shutter is the only
  * way to take a photo, and the caption is unchanged in both modes until a plant
  * is actually in the frame.
+ *
+ * The window size is handed to the loop because the preview is a centre crop of
+ * the capture: without it the probe measures a band wider than the guide frame and
+ * auto-capture can never fire, however carefully the plant is centred. The reason
+ * is written up in `lib/frame-probe.ts`.
  */
 
 import { palette, spacing } from '@leafcare/shared';
@@ -18,7 +23,7 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CloseIcon, FlipIcon, FlashIcon, LeafIcon } from '@/components/icons';
@@ -37,11 +42,17 @@ const CAPTIONS: Record<AutoCaptureStatus, string> = {
   holding: 'Hold still',
   ready: 'Hold still…',
   capturing: 'Identifying…',
+  // Not a framing problem, so the framing instruction would be a lie: the probe has
+  // measured nothing at all for several seconds (see lib/frame-probe.ts).
+  blind: 'Auto can’t see the frame here — tap the shutter',
   gaveUp: 'Tap the shutter when the plant fills the frame',
 };
 
 export default function ScanCameraRoute() {
   const router = useRouter();
+  // The preview fills the window, so its aspect is the window's. The probe needs it
+  // to work out which part of the capture the user is actually looking at.
+  const { width: viewWidth, height: viewHeight } = useWindowDimensions();
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView | null>(null);
   const [facing, setFacing] = useState<'back' | 'front'>('back');
@@ -89,6 +100,7 @@ export default function ScanCameraRoute() {
     cameraRef,
     enabled: autoCapture && focused && permission?.granted === true,
     onCapture: () => capture(CAPTURE_QUALITY),
+    viewAspect: viewWidth / viewHeight,
   });
 
   const pickFromGallery = async () => {
@@ -121,7 +133,11 @@ export default function ScanCameraRoute() {
   }
 
   const locked = autoState.status === 'ready' || autoState.status === 'capturing';
-  const watching = autoCapture && (autoState.status === 'searching' || autoState.status === 'holding' || locked);
+  // The ring tracks a plant approaching the bar, so it is meaningless while the
+  // probe cannot see anything at all.
+  const watching =
+    autoCapture &&
+    (autoState.status === 'searching' || autoState.status === 'holding' || locked);
 
   return (
     <View style={styles.screen}>
