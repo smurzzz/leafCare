@@ -69,6 +69,21 @@ npm run test:coverage --workspace @leafcare/mobile    # src/lib + src/theme
 | `api.test.ts` | the HTTP client's own layer, which had none: the photo part is the shape Expo's `fetch` can serialise (the stub **enforces** that rule, so a regression to React Native's `{ uri, name, type }` fails here with `Unsupported FormDataPart implementation`), the Clerk token and request id go out, a server error keeps its code and message, and a cancelled request is rethrown rather than relabelled as a dead connection |
 | `api-upload-unavailable.test.ts` | a build with no `expo-file-system` refuses to upload (`UPLOAD_UNAVAILABLE`, nothing attempted, no fake outage) while endpoints that carry no photo keep working |
 | `use-auto-capture.test.tsx` | the loop: no probe when disabled, in the background or with no camera; three steady frames then exactly one capture and no further probes; a camera that throws does not stop it; it gives up instead of holding the lens open; it reports `blind` when no probe measures anything, and stops once one does |
+| `live.test.tsx` | the phone-lifecycle bridge behind every live number: a background→foreground change reaches `focusManager` and a mounted query refetches because of it, NetInfo's online/offline answer reaches `onlineManager`, a still-probing NetInfo (`isInternetReachable: null`) is **not** read as offline, one listener per signal however often the layout mounts, and teardown removes them without leaving the managers stuck |
+| `use-refresh-on-focus.test.tsx` | what a focus may and may not do: stale queries refetch, fresh ones and ones already fetching do not (no request per tab tap, no cancelled bootstrap fetch), and a query that settled *after* the first render is the one that gets refetched — the ref-reading behaviour, with the focus subscription registered once rather than per render |
+| `use-pull-to-refresh.test.tsx` | the spinner belongs to the promise: it is up while the refetch runs and down when it resolves, down as well when it **rejects** (the offline case the gesture exists for), and the callback called is the newest one, not the closure from the first render |
+
+The suites around live data are deliberately about *behaviour*, not wiring: `live.test.tsx` ends
+by mounting a real query against a real `QueryClient` and asserting it refetches when the app
+foregrounds, so a bridge that registers the wrong signal — or none — fails here instead of in the
+user's hands. What no unit test reaches is the gesture itself: that a `RefreshControl` is attached
+to the six scrollables is checked by the typechecker alone (the prop has to be an element, which
+is React Native's own contract), and only a device can tell you it feels right.
+
+`renderHook`, `rerender` and `act` are all async in this version of the testing library, and every
+one of them is awaited in these suites. A missing `await` on `act` leaves the act scope open,
+which does not fail loudly: the assertion after it reads the previous state and the *next* test in
+the file gets a null result. Both new hook suites tripped over this before they passed.
 
 Two known properties of this setup, both verified and neither a failing check:
 

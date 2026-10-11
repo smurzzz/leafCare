@@ -7,7 +7,7 @@
 import { spacing, type ReminderItem } from '@leafcare/shared';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CheckIcon, ClockIcon, GearIcon } from '@/components/icons';
@@ -16,6 +16,8 @@ import { ErrorState } from '@/components/ui/feedback';
 import { SegmentedControl } from '@/components/ui/inputs';
 import { PlantPhoto } from '@/components/ui/misc';
 import { Button, Chip, IconButton, TitleText } from '@/components/ui/primitives';
+import { usePullToRefresh } from '@/hooks/use-pull-to-refresh';
+import { useRefreshOnFocus } from '@/hooks/use-refresh-on-focus';
 import { useNotificationPrefs, useReminders, useSnoozeReminder, useWaterPlant } from '@/lib/queries';
 import { useSettings } from '@/theme/settings-provider';
 
@@ -35,6 +37,14 @@ export default function RemindersRoute() {
   const prefs = useNotificationPrefs();
   const water = useWaterPlant();
   const snooze = useSnoozeReminder();
+
+  // Due dates move on the server (a scheduled job, another device, the start of a
+  // day), and a reminder that was snoozed elsewhere should not still read "Today"
+  // here. The snooze preset is part of the gesture because it is part of the row.
+  const pull = usePullToRefresh(async () => {
+    await Promise.all([reminders.refetch(), prefs.refetch()]);
+  });
+  useRefreshOnFocus(reminders, prefs);
 
   const data = reminders.data;
   const isEmpty = tab === 'upcoming' && (data?.empty ?? false);
@@ -96,7 +106,18 @@ export default function RemindersRoute() {
       ) : null}
 
       {!isEmpty ? (
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={pull.refreshing}
+              onRefresh={pull.onRefresh}
+              tintColor={colors.forest}
+              colors={[colors.forest]}
+            />
+          }
+        >
           {tab === 'upcoming'
             ? (data?.groups ?? []).map((group) => (
                 <View key={group.key} style={{ gap: spacing.md }}>

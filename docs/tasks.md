@@ -113,12 +113,21 @@ Use this as the implementation backlog. Check items in PRs / changelog when done
       forest deep so its cream drop stays visible
 - [ ] Icon and splash seen on a device — **needs a device**: the generated files are verified by
       measurement (dimensions, alpha, adaptive safe zone), not yet by a launcher mask
+- [x] Live data on every surface — `lib/live.ts` connects React Query to `AppState` (foreground
+      refetch) and NetInfo (reconnect refetch), `useRefreshOnFocus` refetches a tab when it is
+      reopened (those screens never unmount), and Home / My Plants / Reminders / Profile / detail /
+      care log pull to refresh. Plant count, streak and waterings now follow the server rather than
+      the last mutation this device made
+- [ ] Pull-to-refresh and foreground refetch felt on a device — **needs a device**: the wiring is
+      unit-tested (`live.test.tsx` refetches a mounted query when the app foregrounds), but the
+      gesture itself is a native `RefreshControl`
 
 ## Phase 4 — Testing
 
-- [x] Mobile unit suite under Jest — `jest-expo` on iOS and Android, 12 suites / 236 assertions
-      (`npm test`), covering formatting copy, validation, per-user cache scoping, the offline
-      queue, reminder scheduling, the config guard and the theme default
+- [x] Mobile unit suite under Jest — `jest-expo` on iOS and Android: 22 suites / 380 tests
+      (44 suite runs across the two platforms) via `npm test`, covering formatting copy, validation,
+      per-user cache scoping, the offline queue, reminder scheduling, the config guard, the theme
+      default, the identification and auto-capture paths, and the live-data wiring
 - [x] Offline cache hydration and cache-key scoping (automated)
 - [x] Reminder scheduling and cancellation, permission and push-token flow (automated)
 - [x] Overdue badge math (automated in `tests/shared-domain.test.mjs`)

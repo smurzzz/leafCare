@@ -6,7 +6,15 @@
 import { DEFAULT_LOCATION_KINDS, LOCATION_LABELS, spacing, type PlantSummary } from '@leafcare/shared';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import {
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CloseIcon, PlusIcon, SearchIcon } from '@/components/icons';
@@ -15,6 +23,8 @@ import { CardGridSkeleton, ErrorState } from '@/components/ui/feedback';
 import { SearchField } from '@/components/ui/inputs';
 import { PlantCard } from '@/components/ui/misc';
 import { Button, Chip, IconButton, SectionHeading } from '@/components/ui/primitives';
+import { usePullToRefresh } from '@/hooks/use-pull-to-refresh';
+import { useRefreshOnFocus } from '@/hooks/use-refresh-on-focus';
 import { usePlants } from '@/lib/queries';
 import { useSettings } from '@/theme/settings-provider';
 
@@ -32,6 +42,11 @@ export default function MyPlantsRoute() {
   const plants = usePlants();
   // Memoized so the two filters below keep a stable dependency when the query data is unchanged.
   const all = useMemo(() => plants.data?.plants ?? [], [plants.data]);
+
+  // The count badge, the overdue treatments and every card's "Due today" come
+  // from one list payload, so one gesture refreshes the whole screen.
+  const pull = usePullToRefresh(() => plants.refetch());
+  useRefreshOnFocus(plants);
 
   const cardWidth = (width - spacing.xl * 2 - spacing.md) / 2;
 
@@ -169,7 +184,18 @@ export default function MyPlantsRoute() {
         ))}
       </ScrollView>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={pull.refreshing}
+            onRefresh={pull.onRefresh}
+            tintColor={colors.forest}
+            colors={[colors.forest]}
+          />
+        }
+      >
         <SectionHeading
           title={`${visible.length} ${visible.length === 1 ? 'plant' : 'plants'}`}
           action={query.length > 0 ? 'Clear search' : undefined}

@@ -7,7 +7,7 @@ import { formatVolume, spacing, type PlantDetail } from '@leafcare/shared';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChevronLeftIcon, DropletIcon } from '@/components/icons';
@@ -15,6 +15,8 @@ import { ErrorState } from '@/components/ui/feedback';
 import { TextField } from '@/components/ui/inputs';
 import { ProgressRing, Sheet, StatBlock, Tabs, TipCard } from '@/components/ui/misc';
 import { Button, Card, IconButton, SectionLabel, TextButton } from '@/components/ui/primitives';
+import { usePullToRefresh } from '@/hooks/use-pull-to-refresh';
+import { useRefreshOnFocus } from '@/hooks/use-refresh-on-focus';
 import { amountLabel, deviceTimeZone, formatIsoStamp, streakWeeksLabel } from '@/lib/format';
 import { useDeletePlant, usePlant, useUpdatePlant, useWaterPlant } from '@/lib/queries';
 import { EditScheduleSheet } from '@/screens/edit-schedule-sheet';
@@ -44,6 +46,12 @@ export default function PlantDetailRoute() {
   const water = useWaterPlant();
   const update = useUpdatePlant();
   const remove = useDeletePlant();
+
+  // "Due in 3 days" and the history feed are the server's view of this plant, so
+  // this screen refreshes when it is opened again — after watering it from Home,
+  // for instance, where the detail payload here is a different query.
+  const pull = usePullToRefresh(() => plantQuery.refetch());
+  useRefreshOnFocus(plantQuery);
 
   const [tab, setTab] = useState<Tab>('care');
   const [scheduleOpen, setScheduleOpen] = useState(false);
@@ -91,7 +99,18 @@ export default function PlantDetailRoute() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxxl * 2 }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: spacing.xxxl * 2 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={pull.refreshing}
+            onRefresh={pull.onRefresh}
+            tintColor={colors.forest}
+            colors={[colors.forest]}
+          />
+        }
+      >
         <View style={styles.hero}>
           <Image
             source={plant.photoUrl ? { uri: plant.photoUrl } : undefined}

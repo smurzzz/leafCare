@@ -9,7 +9,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
@@ -24,6 +24,8 @@ import { ErrorState } from '@/components/ui/feedback';
 import { TextField } from '@/components/ui/inputs';
 import { AchievementChip, Avatar, Sheet, StatBlock, TipCard } from '@/components/ui/misc';
 import { Button, Card, IconButton, SectionLabel, TextButton } from '@/components/ui/primitives';
+import { usePullToRefresh } from '@/hooks/use-pull-to-refresh';
+import { useRefreshOnFocus } from '@/hooks/use-refresh-on-focus';
 import { cancelAllReminders } from '@/lib/notifications';
 import {
   clearUserCaches,
@@ -44,6 +46,13 @@ export default function ProfileRoute() {
   const updateMe = useUpdateMe();
   const uploadAvatar = useUploadAvatar();
   const removeAvatar = useRemoveAvatar();
+
+  // Total plants, current streak and waterings are counted server-side on every
+  // read of /api/me, so the number on this card is only as fresh as the last
+  // request. Watering a plant invalidates it; arriving at this tab and pulling
+  // down are the other two ways it moves.
+  const pull = usePullToRefresh(() => me.refetch());
+  useRefreshOnFocus(me);
 
   const [editOpen, setEditOpen] = useState(false);
   const [privacyOpen, setPrivacyOpen] = useState(false);
@@ -80,7 +89,18 @@ export default function ProfileRoute() {
 
   return (
     <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={pull.refreshing}
+            onRefresh={pull.onRefresh}
+            tintColor={colors.forest}
+            colors={[colors.forest]}
+          />
+        }
+      >
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.ink }]}>Profile</Text>
           <IconButton accessibilityLabel="Settings" onPress={() => router.push('/settings')}>

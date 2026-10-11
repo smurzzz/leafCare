@@ -10,6 +10,7 @@ import { OfflineBannerHost, ToastProvider } from '@/components/ui/feedback';
 import { setSessionTokenGetter } from '@/lib/api';
 import { tokenCache, CLERK_PUBLISHABLE_KEY, isClerkConfigured } from '@/lib/clerk';
 import { releaseConfigIssue } from '@/lib/config';
+import { startLiveQueries } from '@/lib/live';
 import { registerForPushNotifications } from '@/lib/notifications';
 import { useNetworkStatus } from '@/lib/network';
 import { flushWateringQueue, hydrateQueryCache, setCacheOwner } from '@/lib/queries';
@@ -18,7 +19,15 @@ import { SettingsProvider, useTheme } from '@/theme/settings-provider';
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { retry: 1, refetchOnWindowFocus: false, staleTime: 15_000 },
+    // Both are only meaningful because `startLiveQueries` wires React Query to
+    // `AppState` and NetInfo: on this platform the managers have no window to
+    // listen to, so these two options did nothing until that bridge existed.
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+      staleTime: 15_000,
+    },
     mutations: { retry: 0 },
   },
 });
@@ -129,6 +138,10 @@ const ThemedApp = () => {
 };
 
 export default function RootLayout() {
+  // Before every screen mounts, so the first "the app came back to the foreground"
+  // event already refreshes what is on screen.
+  useEffect(() => startLiveQueries(), []);
+
   // Without a publishable key Clerk cannot boot at all, so show the setup guide
   // rather than crashing on a white screen. In a *built* app there is nobody to
   // edit a .env file, so an unusable configuration is reported as a problem with

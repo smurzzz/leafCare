@@ -6,13 +6,15 @@
 import { spacing } from '@leafcare/shared';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CalendarGrid } from '@/components/ui/date-picker-sheet';
 import { ErrorState } from '@/components/ui/feedback';
 import { PlantPhoto } from '@/components/ui/misc';
 import { Card, SectionLabel, ScreenHeader, TextButton } from '@/components/ui/primitives';
+import { usePullToRefresh } from '@/hooks/use-pull-to-refresh';
+import { useRefreshOnFocus } from '@/hooks/use-refresh-on-focus';
 import { amountLabel, deviceTimeZone, formatIsoStamp, monthKeyFromDate, todayDateKey } from '@/lib/format';
 import { useCareLog } from '@/lib/queries';
 import { useSettings } from '@/theme/settings-provider';
@@ -27,6 +29,11 @@ export default function CareLogRoute() {
   const careLog = useCareLog(month, params.plantId, true);
 
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+
+  // The month dots and the "N waterings this month" summary are computed by the
+  // API, including the watering that was just logged on another screen.
+  const pull = usePullToRefresh(() => careLog.refetch());
+  useRefreshOnFocus(careLog);
 
   const data = careLog.data;
   const todayKey = todayDateKey(timeZone);
@@ -46,7 +53,18 @@ export default function CareLogRoute() {
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={pull.refreshing}
+            onRefresh={pull.onRefresh}
+            tintColor={colors.forest}
+            colors={[colors.forest]}
+          />
+        }
+      >
         <ScreenHeader
           title="Care log"
           subtitle={data?.monthLabel ?? 'This month'}

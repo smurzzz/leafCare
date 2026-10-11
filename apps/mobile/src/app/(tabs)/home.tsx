@@ -5,7 +5,7 @@
 
 import { palette, spacing } from '@leafcare/shared';
 import { useRouter } from 'expo-router';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BellIcon, FlameIcon, ScanFrameIcon } from '@/components/icons';
@@ -13,6 +13,8 @@ import { SleepingPlantArt } from '@/components/illustrations';
 import { ErrorState, HomeSkeleton } from '@/components/ui/feedback';
 import { CareRow, PlantPhoto, ProgressRing } from '@/components/ui/misc';
 import { Avatar, Button, Chip, IconButton, SectionHeading } from '@/components/ui/primitives';
+import { usePullToRefresh } from '@/hooks/use-pull-to-refresh';
+import { useRefreshOnFocus } from '@/hooks/use-refresh-on-focus';
 import { useHome, useMe, usePlants, useWaterPlant } from '@/lib/queries';
 import { useSettings } from '@/theme/settings-provider';
 
@@ -23,6 +25,15 @@ export default function HomeRoute() {
   const me = useMe();
   const plants = usePlants();
   const water = useWaterPlant();
+
+  // The streak, the due count and the waterings all live on the server, and the
+  // tab stays mounted once visited — so the pull gesture and the return to this
+  // tab are what keep them honest. All three queries move together, because the
+  // screen reads all three: the today list resolves its rows against the plants.
+  const pull = usePullToRefresh(async () => {
+    await Promise.all([home.refetch(), me.refetch(), plants.refetch()]);
+  });
+  useRefreshOnFocus(home, me, plants);
 
   const data = home.data;
 
@@ -84,6 +95,14 @@ export default function HomeRoute() {
         keyExtractor={(item) => item.plantId}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={pull.refreshing}
+            onRefresh={pull.onRefresh}
+            tintColor={colors.forest}
+            colors={[colors.forest]}
+          />
+        }
         ListHeaderComponent={
           <View style={{ gap: spacing.lg }}>
             <Header

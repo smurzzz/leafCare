@@ -2,6 +2,50 @@
 
 ## Unreleased
 
+### Added — the numbers on screen keep up with the server
+
+Total plants, current streak and waterings were only ever as fresh as the last request this
+device happened to make. The count on My Plants, the `3-day streak` chip on Home and the three
+stats on Profile are all computed server-side on every read, but nothing asked again: React
+Query's focus manager was never connected to anything on a phone, `refetchOnWindowFocus` was
+explicitly `false`, and no screen offered a pull-to-refresh. Watering a plant moved the numbers
+because a mutation invalidates them; a day passing, a digest job advancing a due date, or the
+same account on another device did not.
+
+Three pieces fix that, and the first is the one that was missing entirely:
+
+- `lib/live.ts` wires React Query to the phone's lifecycle — `AppState` tells it when the app
+  comes back to the foreground and NetInfo when the network returns. On the web both signals come
+  from the `window`, which is why the managers silently reported "focused and online" forever
+  here: `isFocused()` defaults to `true` when nothing ever says otherwise, so the refetch React
+  Query thought it was doing on every foreground never happened. That is also why
+  `refetchOnReconnect` never fired — the app could not tell it had reconnected. Both listeners are
+  registered once however often the root layout mounts (React's dev double-render included), and
+  a half-finished NetInfo probe (`isInternetReachable: null`) still counts as online, so a cold
+  start does not flash the pink banner and block mutations.
+- `useRefreshOnFocus` refetches a screen's queries when it comes back into focus. Expo Router
+  keeps Home, My Plants, Reminders and Profile mounted for the life of the app, so React Query's
+  *mount* refetch never fires again for them — switching tabs re-renders the same components and
+  no fetch follows. Only stale, idle queries are refetched (a fresh query has nothing new to say,
+  and one already in flight would be cancelled and restarted for the same payload), and the
+  newest query state is read through a ref so the focus callback can be subscribed once instead
+  of re-subscribing every render.
+- Pull to refresh on Home, My Plants, Reminders, Profile, plant detail and the care log, with one
+  spinner per screen rather than one per query, and a spinner that stops even when the refetch
+  fails — which is exactly the case it is used for.
+
+The stale windows also came down (10s for the four payloads behind these numbers, 15s for the
+care log) because with focus refetching, a shorter window is a number that is more often true,
+and the cost is one small request per tab visit. And the cache seeded on launch is now marked
+**stale without refetching**: `setQueryData` dates the payload as fetched *now*, and a query that
+looks fresh is the one React Query refuses to refresh on mount — so a cold start could paint
+yesterday's plant count and then not ask the server for the whole stale window. It still paints
+instantly; the mount fetch that follows corrects it.
+
+What this is not: polling. A screen left open and untouched is still refreshed by the gesture,
+not by a timer — a request per minute per idle screen is a battery cost this app's data does not
+justify.
+
 ### Added — the app finally has its own icon
 
 Every icon surface was still the Expo template's blue chevron — `icon.png`, `favicon.png`,

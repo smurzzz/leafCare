@@ -23,6 +23,7 @@ import {
   useQuery,
   useQueryClient,
   type QueryClient,
+  type QueryKey,
   type UseMutationResult,
 } from '@tanstack/react-query';
 
@@ -69,6 +70,14 @@ const cacheWriter = <T>(base: string) => (data: T) => {
  * Screens already fall back to their empty state only when there is no data at
  * all, so seeding the cache is what turns "API unreachable" from an error screen
  * into the last known plants — and it makes a cold start render instantly.
+ *
+ * The seeded payloads are then marked **stale without refetching** (nothing is
+ * observing them yet, so `refetchType: 'none'` only flips the flag). That matters:
+ * `setQueryData` dates the data as fetched *now*, and a query that looks fresh is
+ * exactly the one React Query refuses to refresh on mount — so a cold start would
+ * show yesterday's plant count for the length of the stale window and never ask
+ * the server. Marked stale, the cached numbers still paint on the first frame and
+ * the mount fetch that follows quietly corrects them.
  */
 export const hydrateQueryCache = async (client: QueryClient): Promise<void> => {
   if (!cacheOwnerId) return;
@@ -80,9 +89,24 @@ export const hydrateQueryCache = async (client: QueryClient): Promise<void> => {
     readJson<RemindersResponse>(userScopedKey(StorageKeys.remindersCache, owner)),
   ]);
 
-  if (home) client.setQueryData(queryKeys.home, home);
-  if (plants) client.setQueryData(queryKeys.plants(), plants);
-  if (reminders) client.setQueryData(queryKeys.reminders('upcoming'), reminders);
+  const seeded: QueryKey[] = [];
+
+  if (home) {
+    client.setQueryData(queryKeys.home, home);
+    seeded.push(queryKeys.home);
+  }
+  if (plants) {
+    client.setQueryData(queryKeys.plants(), plants);
+    seeded.push(queryKeys.plants());
+  }
+  if (reminders) {
+    client.setQueryData(queryKeys.reminders('upcoming'), reminders);
+    seeded.push(queryKeys.reminders('upcoming'));
+  }
+
+  await Promise.all(
+    seeded.map((key) => client.invalidateQueries({ queryKey: key, refetchType: 'none' })),
+  );
 };
 
 /** Drops this device's cached payloads — called on sign out, and on a wipe. */
@@ -104,7 +128,11 @@ export const useMe = (enabled = true) =>
     queryKey: queryKeys.me,
     queryFn: api.me,
     enabled,
-    staleTime: 30_000,
+    // Short, because this is the payload behind the Profile stats — total plants,
+    // current streak, waterings — and those are the numbers a user checks against
+    // the plants in front of them. `useRefreshOnFocus` turns "stale" into a refetch
+    // when the tab comes back into view, so seconds here are seconds of truth.
+    staleTime: 10_000,
   });
 
 export const useHome = (enabled = true) =>
@@ -116,7 +144,7 @@ export const useHome = (enabled = true) =>
       return data;
     },
     enabled,
-    staleTime: 30_000,
+    staleTime: 10_000,
   });
 
 export const usePlants = (params?: { filter?: string; q?: string }, enabled = true) =>
@@ -130,7 +158,7 @@ export const usePlants = (params?: { filter?: string; q?: string }, enabled = tr
       return data;
     },
     enabled,
-    staleTime: 15_000,
+    staleTime: 10_000,
   });
 
 export const usePlant = (id: string, enabled = true) =>
@@ -150,7 +178,7 @@ export const useReminders = (tab: 'upcoming' | 'completed' = 'upcoming', enabled
       return data;
     },
     enabled,
-    staleTime: 15_000,
+    staleTime: 10_000,
   });
 
 export const useCareLog = (month: string, plantId?: string, enabled = true) =>
@@ -158,7 +186,7 @@ export const useCareLog = (month: string, plantId?: string, enabled = true) =>
     queryKey: queryKeys.careLog(month, plantId),
     queryFn: () => api.careLog({ month, plantId }),
     enabled,
-    staleTime: 30_000,
+    staleTime: 15_000,
   });
 
 export const useSpeciesSearch = (query: string) =>
